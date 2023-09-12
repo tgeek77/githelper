@@ -14,9 +14,13 @@ I hope they make your work a little easier if you want to go away from big hoste
 The following scripts are available for remove git servers accessible by ssh.
 
 * `mkrepo.py` will log in to the server with ssh and create the repo in the home directory of the git user.
+[![asciicast](https://asciinema.org/a/xsu7KDHv0p92W9dITq22egdhm.svg)](https://asciinema.org/a/xsu7KDHv0p92W9dITq22egdhm)
 * `githelper.py` will log in to the server with ssh and provide a list of all current repos. Choose the number of the repo that you want to clone and it will clone it to your current directory.
+[![asciicast](https://asciinema.org/a/GwtffSYqbq6wPwZqVnHx9EUaC.svg)](https://asciinema.org/a/GwtffSYqbq6wPwZqVnHx9EUaC)
 * `archiverepo.py` will log in to the server with ssh and provide a list of all current repos. Choose the number of the repo that you want to archive. The repo will be backed up as a .tgz file and then the repo directory will be deleted. This is the safe way to delete a repo.
+[![asciicast](https://asciinema.org/a/LQ120ADiMfyVbLX9gTZdMPzDw.svg)](https://asciinema.org/a/LQ120ADiMfyVbLX9gTZdMPzDw)
 * `rmrepo.py` will log in to the server with ssh and provide a list of all current repos. Choose the number of the repo that you want to delete. The repo is deleted but not backed up first.
+[![asciicast](https://asciinema.org/a/pw3clKzZg5DYDUMQ3f1bX6kfr.svg)](https://asciinema.org/a/pw3clKzZg5DYDUMQ3f1bX6kfr)
 
 ## Local
 
