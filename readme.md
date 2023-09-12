@@ -11,7 +11,7 @@ I hope they make your work a little easier if you want to go away from big hoste
 
 ## SSH
 
-The following scripts are available for servers where your git servers are available remotely and are accessible by ssh.
+The following scripts are available for remove git servers accessible by ssh.
 
 * `mkrepo.py` will log in to the server with ssh and create the repo in the home directory of the git user.
 * `githelper.py` will log in to the server with ssh and provide a list of all current repos. Choose the number of the repo that you want to clone and it will clone it to your current directory.
