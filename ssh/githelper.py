@@ -5,7 +5,7 @@ import subprocess
 repoList = ()
 
 # get list of repos and put them into a collection
-repoStr = subprocess.getoutput("ssh git@example.com 'ls *.git'")
+repoStr = subprocess.getoutput("ssh git@example.com 'ls | grep \.git'")
 
 # Convert the string to a list
 def Convert(string):
