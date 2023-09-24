@@ -39,29 +39,21 @@ def main():
     parser.add_argument('--remove', action='store', help='Deletes a repo')
     
     args = parser.parse_args()
+    sshServer = args.server
+    sshUser = args.user
 
     if args.list:
-        sshServer = args.server
-        sshUser = args.user
         list_repos(sshServer, sshUser)
     elif args.clone:
-        sshServer = args.server
-        sshUser = args.user
         cloneRepo = args.clone
         clone_repo(cloneRepo, sshServer, sshUser)
     elif args.new:
-        sshServer = args.server
-        sshUser = args.user
         newRepo = args.new
         new_repo(newRepo, sshServer, sshUser)
     elif args.archive:
-        sshServer = args.server
-        sshUser = args.user
         archiveRepo = args.archive
         archive_repo(archiveRepo, sshServer, sshUser)
     elif args.remove:
-        sshServer = args.server
-        sshUser = args.user
         rmRepo = args.remove
         remove_repo(rmRepo, sshServer, sshUser)
 
