@@ -9,22 +9,10 @@ Instead, what about just using git directly to create and clone repos without ne
 
 I hope they make your work a little easier if you want to go away from big hosted services.
 
-## SSH
+## Update:
 
-The following scripts are available for remove git servers accessible by ssh.
+I guess you can call this version 1.0 of the githelper ssh script. I have integrated all of the individual scripts into a single script that does everything and it works using command line tags. Right now you need to define the user and server every time. 
 
-* `mkrepo.py` will log in to the server with ssh and create the repo in the home directory of the git user.
-[![asciicast](https://asciinema.org/a/xsu7KDHv0p92W9dITq22egdhm.svg)](https://asciinema.org/a/xsu7KDHv0p92W9dITq22egdhm)
-* `githelper.py` will log in to the server with ssh and provide a list of all current repos. Choose the number of the repo that you want to clone and it will clone it to your current directory.
-[![asciicast](https://asciinema.org/a/GwtffSYqbq6wPwZqVnHx9EUaC.svg)](https://asciinema.org/a/GwtffSYqbq6wPwZqVnHx9EUaC)
-* `archiverepo.py` will log in to the server with ssh and provide a list of all current repos. Choose the number of the repo that you want to archive. The repo will be backed up as a .tgz file and then the repo directory will be deleted. This is the safe way to delete a repo.
-[![asciicast](https://asciinema.org/a/LQ120ADiMfyVbLX9gTZdMPzDw.svg)](https://asciinema.org/a/LQ120ADiMfyVbLX9gTZdMPzDw)
-* `rmrepo.py` will log in to the server with ssh and provide a list of all current repos. Choose the number of the repo that you want to delete. The repo is deleted but not backed up first.
-[![asciicast](https://asciinema.org/a/pw3clKzZg5DYDUMQ3f1bX6kfr.svg)](https://asciinema.org/a/pw3clKzZg5DYDUMQ3f1bX6kfr)
-
-## Local
-
-The following scripts are available for local git reposities.  It is assumed that you have created `/srv/git` and you have write permissions to it. The scripts are easy to edit and this directory can be changed to an NFS or SMB share if you don't want to use SSH.
-
-* `mkrepo_local.py` will create the repo in `/srv/git`.
-* `githelper_local.py` will provide a list of all current repos in `/srv/git`. Choose the number of the repo that you want to clone and it will clone it to your current directory.
+## Todos:
+* My next task will be finding a way to define that once so that it does not ask you again. You can also use githelper now with other scripts to define this. So if you like it you could predefine everything using a simple bash script or you can hardcode everything yourself in the githelper python script.
+* I'll also create a unified offline script for people who want to use a local repository and I'll also allow it to ask you where you want to save the repo instead of always being `/opt/git` by default.
