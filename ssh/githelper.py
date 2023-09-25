@@ -28,8 +28,8 @@ def main():
     parser = argparse.ArgumentParser(description='A simple script with multiple command-line flags.')
 
     # Add the arguments for using your specific server
-    parser.add_argument('--server', help='What server should I use?')
-    parser.add_argument('--user', help='What user should I use?')
+    parser.add_argument('--server', default="example.com", help='What server should I use?')
+    parser.add_argument('--user', default="tux", help='What user should I use?')
 
     # Add optional flags
     parser.add_argument('--list', '-l', action='store_true', help='Lists existing repos')
