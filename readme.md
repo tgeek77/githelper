@@ -14,5 +14,5 @@ I hope they make your work a little easier if you want to go away from big hoste
 I guess you can call this version 1.0 of the githelper ssh script. I have integrated all of the individual scripts into a single script that does everything and it works using command line tags. Right now you need to define the user and server every time. 
 
 ## Todos:
-* My next task will be finding a way to define that once so that it does not ask you again. You can also use githelper now with other scripts to define this. So if you like it you could predefine everything using a simple bash script or you can hardcode everything yourself in the githelper python script.
+* My next task will be finding a way to define your ssh server once so that it does not ask you again until you override it. You can also use githelper now with other scripts to define this. So if you like it you could predefine everything using a simple bash script or you can hardcode everything yourself in the githelper python script.
 * I'll also create a unified offline script for people who want to use a local repository and I'll also allow it to ask you where you want to save the repo instead of always being `/opt/git` by default.
