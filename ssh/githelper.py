@@ -4,7 +4,7 @@ import argparse
 import subprocess
 
 def list_repos(sshServer, sshUser):
-    repoStr = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "ls")
+    repoStr = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "ls" + " " + "| sed -e 's/\.git//g'")
     print(repoStr)
 
 def clone_repo(cloneRepo, sshServer, sshUser):
