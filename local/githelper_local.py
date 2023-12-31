@@ -23,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description='A simple script with multiple command-line flags.')
 
     # Add the arguments for using your specific server
-    parser.add_argument('--loc', default="/srv/git", help='What location should I use?')
+    parser.add_argument('--loc', default="/srv/git", help='What location should I use? The default is /srv/git.')
 
     # Add optional flags
     parser.add_argument('--list', '-l', action='store_true', help='Lists existing repos')
