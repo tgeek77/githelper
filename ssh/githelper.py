@@ -7,10 +7,6 @@ def list_repos(sshServer, sshUser, sshPort):
     repoStr = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "-p" + sshPort + " " + "ls" + " " + "| sed -e 's/\.git//g'")
     print(repoStr)
 
-# def clone_repo(cloneRepo, sshServer, sshUser, sshPort):
-#     cloneOutput = subprocess.getoutput("git clone" + " " + "ssh://" + sshUser + "@" + sshServer + ":~/" + cloneRepo + ".git") # clones the repo
-#     print(cloneOutput) # prints output confirming that it was cloned
-
 def clone_repo(cloneRepo, sshServer, sshUser, sshPort):
     cloneOutput = subprocess.getoutput("git" + " " + "clone" + " " + "ssh://" + sshUser + "@" + sshServer + ":" + sshPort +  "/~/" + cloneRepo + ".git") # clones the repo
     print(cloneOutput) # prints output confirming that it was cloned
