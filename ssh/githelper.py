@@ -3,26 +3,30 @@
 import argparse
 import subprocess
 
-def list_repos(ssh_server, ssh_user, ssh_port):
-    repo_str = subprocess.getoutput("ssh " + ssh_user + "@" + ssh_server + " " + "-p" + ssh_port + " " + "ls" + " " + "| sed -e 's/git//g'")
-    print(repo_str)
+def list_repos(sshServer, sshUser, sshPort):
+    repoStr = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "-p" + sshPort + " " + "ls" + " " + "| sed -e 's/\\.git//g'")
+    print(repoStr)
 
-def clone_Repo(clone_Repo, ssh_server, ssh_user, ssh_port):
-    clone_output = subprocess.getoutput("git" + " " + "clone" + " " + "ssh://" + ssh_user + "@" + ssh_server + ":" + ssh_port +  "/~/" + clone_Repo + ".git") # clones the repo
-    print(clone_output) # prints output confirming that it was cloned
+# def clone_repo(cloneRepo, sshServer, sshUser, sshPort):
+#     cloneOutput = subprocess.getoutput("git clone" + " " + "ssh://" + sshUser + "@" + sshServer + ":~/" + cloneRepo + ".git") # clones the repo
+#     print(cloneOutput) # prints output confirming that it was cloned
 
-def new_repo(new_repo, ssh_server, ssh_user, ssh_port):
-    mk_repo_output = subprocess.getoutput("ssh " + ssh_user + "@" + ssh_server + " " + "-p" + ssh_port + " " + "git init --bare " + new_repo + ".git")
-    print(mk_repo_output)
+def clone_repo(cloneRepo, sshServer, sshUser, sshPort):
+    cloneOutput = subprocess.getoutput("git" + " " + "clone" + " " + "ssh://" + sshUser + "@" + sshServer + ":" + sshPort +  "/~/" + cloneRepo + ".git") # clones the repo
+    print(cloneOutput) # prints output confirming that it was cloned
 
-def archive_repo(archive_repo, ssh_server, ssh_user, ssh_port):
-    print("Archiving " + archive_repo + " to a tarball")
-    clone_output = subprocess.getoutput("ssh " + ssh_user + "@" + ssh_server  + " " + "-p" + ssh_port + " " + "tar cfvz " + archive_repo + ".tgz " + archive_repo + ".git/")
+def new_repo(newRepo, sshServer, sshUser, sshPort):
+    mkRepoOutput = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "-p" + sshPort + " " + "git init --bare " + newRepo + ".git")
+    print(mkRepoOutput)
 
-def remove_repo(rm_repo, ssh_server, ssh_user, ssh_port):
-    print("Deleting " + rm_repo)
-    clone_output = subprocess.getoutput("ssh " + ssh_user + "@" + ssh_server + " " + "-p" + ssh_port + " " + " rm -rfv " + rm_repo + ".git") # deletes the repo
-    print(clone_output) # prints output confirming that it was deleted
+def archive_repo(archiveRepo, sshServer, sshUser, sshPort):
+    print("Archiving " + archiveRepo + " to a tarball")
+    cloneOutput = subprocess.getoutput("ssh " + sshUser + "@" + sshServer  + " " + "-p" + sshPort + " " + "tar cfvz " + archiveRepo + ".tgz " + archiveRepo + ".git/")
+
+def remove_repo(rmRepo, sshServer, sshUser, sshPort):
+    print("Deleting " + rmRepo)
+    cloneOutput = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "-p" + sshPort + " " + " rm -rfv " + rmRepo + ".git") # deletes the repo
+    print(cloneOutput) # prints output confirming that it was deleted
 
 def main():
     parser = argparse.ArgumentParser(description='A simple script with multiple command-line flags.')
@@ -40,24 +44,24 @@ def main():
     parser.add_argument('--port', '-p', default="22", help='Set the ssh port to something other than 22')
 
     args = parser.parse_args()
-    ssh_server = args.server
-    ssh_user = args.user
-    ssh_port = args.port
+    sshServer = args.server
+    sshUser = args.user
+    sshPort = args.port
 
     if args.list:
-        list_repos(ssh_server, ssh_user, ssh_port)
+        list_repos(sshServer, sshUser, sshPort)
     elif args.clone:
-        clone_Repo = args.clone
-        clone_Repo(clone_Repo, ssh_server, ssh_user, ssh_port)
+        cloneRepo = args.clone
+        clone_repo(cloneRepo, sshServer, sshUser, sshPort)
     elif args.new:
-        new_repo = args.new
-        new_repo(new_repo, ssh_server, ssh_user, ssh_port)
+        newRepo = args.new
+        new_repo(newRepo, sshServer, sshUser, sshPort)
     elif args.archive:
-        archive_repo = args.archive
-        archive_repo(archive_repo, ssh_server, ssh_user, ssh_port)
+        archiveRepo = args.archive
+        archive_repo(archiveRepo, sshServer, sshUser, sshPort)
     elif args.remove:
-        rm_repo = args.remove
-        remove_repo(rm_repo, ssh_server, ssh_user, ssh_port)
+        rmRepo = args.remove
+        remove_repo(rmRepo, sshServer, sshUser, sshPort)
 
 if __name__ == '__main__':
     main()
