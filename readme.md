@@ -20,15 +20,15 @@ There is one more option if you don't want to use aliases:
 Open githelper.py in a text editor and look for this code:
 
 ```
-    # Add the arguments for using your specific server
-    parser.add_argument('--server', default="example.com", help='What server should I use?')
-    parser.add_argument('--user', default="tux", help='What user should I use?')
+# Add the arguments for using your specific server
+parser.add_argument('--server', default="example.com", help='What server should I use?')
+parser.add_argument('--user', default="tux", help='What user should I use?')
 ```
 
 You can simple change `example.com` to your server and you change `tux` to your server and username. 
 
 You can do the same thing with the port number. Personally, I don't use the standard port 22. If you're like me, you can change that also.
 ```
-    parser.add_argument('--port', '-p', default="22", help='Set the ssh port to something other than 22')
+parser.add_argument('--port', '-p', default="22", help='Set the ssh port to something other than 22')
 ```
 
