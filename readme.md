@@ -53,7 +53,7 @@ options:
 ```
 
 ### Note on Cloning:
-The clone function 
+The clone function can seem like it froze up if the repository that you are cloning is very large and you connection is slow.
 
 ## Update:
 
