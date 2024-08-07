@@ -33,6 +33,10 @@ options:
                         Compresses a repo into a tarball file
   --remove REMOVE       Deletes a repo
   --port PORT, -p PORT  Set the ssh port to something other than 22
+  --rename, -rn         Rename repo
+  --fork, -f            Copy repo
+  --oldrepo OLDREPO     Old Name (Used with fork or rename)
+  --newrepo NEWREPO     New Name (Used with fork or rename)
 ```
 
 ```

@@ -48,8 +48,8 @@ def main():
     parser.add_argument('--port', '-p', default="22", help='Set the ssh port to something other than 22')
     parser.add_argument('--rename', '-rn', action='store_true', help='Rename repo')
     parser.add_argument('--fork', '-f', action='store_true', help='Copy repo')
-    parser.add_argument('--oldrepo', action='store', help='Old Name')
-    parser.add_argument('--newrepo', action='store', help='New Name')
+    parser.add_argument('--oldrepo', action='store', help='Old Name (Used with fork or rename)')
+    parser.add_argument('--newrepo', action='store', help='New Name (Used with fork or rename)')
 
     args = parser.parse_args()
     sshServer = args.server
