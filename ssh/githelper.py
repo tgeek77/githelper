@@ -7,9 +7,13 @@ def list_repos(sshServer, sshUser, sshPort):
     repoStr = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "-p" + sshPort + " " + "ls" + " " + "| sed -e 's/\\.git//g'")
     print(repoStr)
 
-# def clone_repo(cloneRepo, sshServer, sshUser, sshPort):
-#     cloneOutput = subprocess.getoutput("git clone" + " " + "ssh://" + sshUser + "@" + sshServer + ":~/" + cloneRepo + ".git") # clones the repo
-#     print(cloneOutput) # prints output confirming that it was cloned
+def rename_repo(sshServer, sshUser, sshPort, newRepo, oldRepo):
+    renameRepo = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "-p" + sshPort + " " + "mv -v " + oldRepo + ".git " + newRepo + ".git")
+    print(renameRepo)
+
+def fork_repo(sshServer, sshUser, sshPort, newRepo, oldRepo):
+    forkRepo = subprocess.getoutput("ssh " + sshUser + "@" + sshServer + " " + "-p" + sshPort + " " + "cp -rv " + oldRepo + ".git " + newRepo + ".git")
+    print(forkRepo)
 
 def clone_repo(cloneRepo, sshServer, sshUser, sshPort):
     cloneOutput = subprocess.getoutput("git" + " " + "clone" + " " + "ssh://" + sshUser + "@" + sshServer + ":" + sshPort +  "/~/" + cloneRepo + ".git") # clones the repo
@@ -42,11 +46,19 @@ def main():
     parser.add_argument('--archive', '-a', action='store', help='Compresses a repo into a tarball file')
     parser.add_argument('--remove', action='store', help='Deletes a repo')
     parser.add_argument('--port', '-p', default="22", help='Set the ssh port to something other than 22')
+    parser.add_argument('--rename', '-rn', action='store_true', help='Rename repo')
+    parser.add_argument('--fork', '-f', action='store_true', help='Copy repo')
+    parser.add_argument('--oldrepo', action='store', help='Old Name')
+    parser.add_argument('--newrepo', action='store', help='New Name')
 
     args = parser.parse_args()
     sshServer = args.server
     sshUser = args.user
     sshPort = args.port
+    newRepo = args.newrepo
+    oldRepo = args.oldrepo
+    rename = args.rename
+    fork = args.fork
 
     if args.list:
         list_repos(sshServer, sshUser, sshPort)
@@ -62,6 +74,10 @@ def main():
     elif args.remove:
         rmRepo = args.remove
         remove_repo(rmRepo, sshServer, sshUser, sshPort)
+    elif args.rename:
+        rename_repo(sshServer, sshUser, sshPort, newRepo, oldRepo)
+    elif args.fork:
+        fork_repo(sshServer, sshUser, sshPort, newRepo, oldRepo)
 
 if __name__ == '__main__':
     main()
