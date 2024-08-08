@@ -60,10 +60,11 @@ options:
 The clone function can seem like it froze up if the repository that you are cloning is very large and you connection is slow.
 
 ## Update:
+- Added rename and fork functions.
+  - Rename will rename the repository on the server, you will need to re-clone the repo or manually change the upstream repo url in your local repo.
+  - Fork will copy an existing repository on the server to a new name. You can then clone the fork to a new local repo. The original and the fork will have no relation so if you decide to merge them again in the future, that will need to be done manually.
 
-aliases.md contains a few BASH aliases that you can use with githelper.
-
-I thought long a hard about writing a function into githelper that would cache your settings so you don't have to write them manually every time. I think wrapping a simple alias around the command is a better way to go.
+- aliases.md contains a few BASH aliases that you can use with githelper. I thought long a hard about writing a function into githelper that would cache your settings so you don't have to write them manually every time. I think wrapping a simple alias around the command is a better way to go.
 
 There is one more option if you don't want to use aliases:
 
