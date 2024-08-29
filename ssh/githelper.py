@@ -16,7 +16,7 @@ def fork_repo(sshServer, sshDir, sshUser, sshPort, newRepo, oldRepo):
     print(forkRepo)
 
 def clone_repo(cloneRepo, sshServer, sshDir, sshUser, sshPort):
-    cloneOutput = subprocess.getoutput("git" + " " + "clone" + " " + "ssh://" + sshUser + "@" + sshServer + ":" + sshPort + " " + sshDir + '/' + cloneRepo + ".git") # clones the repo
+    cloneOutput = subprocess.getoutput("git" + " " + "clone" + " " + "ssh://" + sshUser + "@" + sshServer  + ":" + sshPort + '/' + sshDir + '/' + cloneRepo + ".git") # clones the repo
     print(cloneOutput) # prints output confirming that it was cloned
 
 def new_repo(newRepo, sshServer, sshDir, sshUser, sshPort):
@@ -50,7 +50,7 @@ def main():
     parser.add_argument('--fork', '-f', action='store_true', help='Copy repo')
     parser.add_argument('--oldrepo', action='store', help='Old Name (Used with fork or rename)')
     parser.add_argument('--newrepo', action='store', help='New Name (Used with fork or rename)')
-    parser.add_argument('--dir', '-d', default=".", action='store', help='Set the directory where your git repos are located on the server')
+    parser.add_argument('--dir', '-d', default="~", action='store', help='Set the directory where your git repos are located on the server')
 
     args = parser.parse_args()
     sshServer = args.server
