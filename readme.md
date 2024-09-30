@@ -16,8 +16,8 @@ githelper.py allows you to use any ssh connection as a place to store git reposi
 githelper_local.py works the same way excect it will use any directory on your local computer. This directory can be on your local filesystem, a USB Drive, or a network share like NFS. 
 
 ```
-usage: githelper.py [-h] [--server SERVER] [--user USER] [--list] [--clone CLONE] [--new NEW]
-                    [--archive ARCHIVE] [--remove REMOVE] [--port PORT]
+usage: githelper.py [-h] [--server SERVER] [--user USER] [--list] [--clone CLONE] [--new NEW] [--archive ARCHIVE] [--remove REMOVE] 
+                    [--port PORT] [--rename] [--fork] [--oldrepo OLDREPO] [--newrepo NEWREPO] [--dir DIR]
 
 A simple script with multiple command-line flags.
 
@@ -37,7 +37,7 @@ options:
   --fork, -f            Copy repo
   --oldrepo OLDREPO     Old Name (Used with fork or rename)
   --newrepo NEWREPO     New Name (Used with fork or rename)
-```
+  --dir DIR, -d DIR     Set the directory where your git repos are located on the server
 
 ```
 usage: githelper_local.py [-h] [--loc LOC] [--list] [--clone CLONE] [--new NEW]
