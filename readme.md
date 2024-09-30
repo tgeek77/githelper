@@ -3,7 +3,7 @@ Tools to make your own private git repos without needing any extra frameworks.
 
 ## About:
 
-A lot of use want to create our own private git repos without needing to rely on third-party tools like Github, Gitlab, or even Gitea. If you're concerned about privacy, cloud-based tools always present issues because Terms of Service could change at any time, not to mention the fact that well known services tend to be target for hackers. Even self-hosting a service like Gitea or Gitlab means that you need to worry about the proper care and updates of this software. Often, they have have tons of services that you will never needs.
+A lot of use want to create our own private git repos without needing to rely on third-party tools like Github, Gitlab, or even Gitea. If you're concerned about privacy, cloud-based tools always present issues because Terms of Service could change at any time, not to mention the fact that well known services tend to be target for hackers. Even self-hosting a service like Gitea or Gitlab means that you need to worry about the proper care and updates of this software. Often, they have have tons of services that you will never need.
 
 Instead, what about just using git directly to create and clone repos without needing all of the overhead of these other systems? My scripts do that. They give you a way to quickly create a new repo on a remote machine or even on your local machine, clone the repo that you just created, and start working. These scripts are simple and they each only do one job.
 
