@@ -46,11 +46,39 @@ class GitHelperGUI(QWidget):
         ssh_group = QGroupBox("SSH Settings")
         ssh_layout = QVBoxLayout()
 
-        # Input fields
-        self.server_entry = self._add_field(ssh_layout, "Server:", self.config.get("server", "example.com"))
-        self.user_entry = self._add_field(ssh_layout, "User:", self.config.get("user", "tux"))
-        self.port_entry = self._add_field(ssh_layout, "Port:", self.config.get("port", "22"))
-        self.dir_entry = self._add_field(ssh_layout, "Directory:", self.config.get("dir", "~/repos"))
+        # --- First row: Server, User, Port (3 columns)
+        top_row = QHBoxLayout()
+        
+        server_container = QVBoxLayout()
+        server_container.addWidget(QLabel("Server:"))
+        self.server_entry = QLineEdit()
+        self.server_entry.setText(self.config.get("server", "example.com"))
+        server_container.addWidget(self.server_entry)
+        top_row.addLayout(server_container)
+
+        user_container = QVBoxLayout()
+        user_container.addWidget(QLabel("User:"))
+        self.user_entry = QLineEdit()
+        self.user_entry.setText(self.config.get("user", "tux"))
+        user_container.addWidget(self.user_entry)
+        top_row.addLayout(user_container)
+
+        port_container = QVBoxLayout()
+        port_container.addWidget(QLabel("Port:"))
+        self.port_entry = QLineEdit()
+        self.port_entry.setText(self.config.get("port", "22"))
+        port_container.addWidget(self.port_entry)
+        top_row.addLayout(port_container)
+
+        ssh_layout.addLayout(top_row)
+
+        # --- Second row: Directory
+        dir_row = QHBoxLayout()
+        dir_row.addWidget(QLabel("Directory:"))
+        self.dir_entry = QLineEdit()
+        self.dir_entry.setText(self.config.get("dir", "~/repos"))
+        dir_row.addWidget(self.dir_entry)
+        ssh_layout.addLayout(dir_row)
 
         # --- Buttons
         button_row = QHBoxLayout()
@@ -86,17 +114,6 @@ class GitHelperGUI(QWidget):
         main_layout.addWidget(heatmap_button)
 
         self.setLayout(main_layout)
-
-    # == Helper for text field/label pairs ==
-    def _add_field(self, layout, label_text, default_value):
-        row = QHBoxLayout()
-        label = QLabel(label_text)
-        entry = QLineEdit()
-        entry.setText(default_value)
-        row.addWidget(label)
-        row.addWidget(entry)
-        layout.addLayout(row)
-        return entry
 
     # == Config Management ==
     def load_config(self):
@@ -251,7 +268,7 @@ class CommitHeatmapWindow(QWidget):
 
         # Data storage for per-day details
         self.day_details = {}  # {date_str: {repo: count}}
-        self.cell_to_date = {}  # {(row, col): date_str} - MAPPING TO FIX ALIGNMENT
+        self.cell_to_date = {}  # {(row, col): date_str}
 
         main_layout = QVBoxLayout()
 
@@ -351,7 +368,7 @@ class CommitHeatmapWindow(QWidget):
         self.table.clearContents()
         self.table.setToolTip("")
         self.day_details.clear()
-        self.cell_to_date.clear()  # CLEAR MAPPING EACH TIME
+        self.cell_to_date.clear()
 
         base = Path(os.path.expanduser(self.repo_base))
         repos = [p for p in base.iterdir() if (p / ".git").exists()]
@@ -414,7 +431,7 @@ class CommitHeatmapWindow(QWidget):
             col += 1
         self.table.setHorizontalHeaderLabels(horizontal_labels)
 
-        # Fill grid - FIXED ROW CALCULATION AND STORE MAPPING
+        # Fill grid
         col = 0
         for week_start in range(0, 365, 7):
             for day_offset in range(7):
@@ -427,7 +444,7 @@ class CommitHeatmapWindow(QWidget):
 
                 item = QTableWidgetItem()
                 if count > 0:
-                    intensity = int(255 - (min(1, count / max_commits)) * 200)
+                    intensity = int(255 - (min(1, count / max_commits) * 200))
                     color = QColor(200, intensity, 200)
                     item.setBackground(color)
                     tooltip = f"{date}: {count} commit(s)"
@@ -437,10 +454,8 @@ class CommitHeatmapWindow(QWidget):
                     tooltip = f"{date}: no commits"
 
                 item.setToolTip(tooltip)
-                # CORRECT FORMULA: (weekday + 1) % 7 to map Sun=0, Mon=1, etc.
                 row = (date.weekday() + 1) % 7
                 self.table.setItem(row, col, item)
-                # STORE THE MAPPING FOR CLICK HANDLER
                 self.cell_to_date[(row, col)] = date_str
             col += 1
 
@@ -449,7 +464,6 @@ class CommitHeatmapWindow(QWidget):
         row = item.row()
         col = item.column()
 
-        # USE THE STORED MAPPING - NO CALCULATION NEEDED
         date_str = self.cell_to_date.get((row, col))
         if not date_str:
             QMessageBox.warning(self, "Error", "Could not determine date.")
