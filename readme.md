@@ -6,6 +6,13 @@ Instead, what about just using git directly to create and clone repos without ne
 
 I hope they make your work a little easier if you want to go away from big hosted services.
 
+## Dependancies
+### For GUI:
+
+Ubuntu/Debian:
+- python3-pyqt6
+
+
 ## How to Use githelper:
 
 `githelper.py` allows you to use any SSH connection as a place to store git repositories. This can be on a Raspberry Pi in your own home or on a server in another country. As long as you have SSH access to that device, `githelper.py` will be able to work with it.
@@ -40,6 +47,8 @@ options:
 The clone function can seem like it froze up if the repository that you are cloning is very large and your connection is slow.
 
 ## Updates:
+- We have a GUI! Check out `gui/githelper-qt6.py`
+
 - Added rename and fork functions.
   - **Rename** will rename the repository on the server; you will need to re-clone the repo or manually change the upstream repo URL in your local repo.
   - **Fork** will copy an existing repository on the server to a new name. You can then clone the fork to a new local repo. The original and the fork will have no relation, so if you decide to merge them again in the future, that will need to be done manually.
