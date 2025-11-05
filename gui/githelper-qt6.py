@@ -48,7 +48,7 @@ class GitHelperGUI(QWidget):
 
         # --- First row: Server, User, Port (3 columns)
         top_row = QHBoxLayout()
-        
+
         server_container = QVBoxLayout()
         server_container.addWidget(QLabel("Server:"))
         self.server_entry = QLineEdit()
@@ -173,11 +173,14 @@ class GitHelperGUI(QWidget):
     def clone_repo(self):
         item = self.repo_list.currentItem()
         if not item:
-            QMessageBox.warning(self, "No Selection", "Please select a repo to clone")
+            QMessageBox.warning(self, "No Selection",
+                                "Please select a repo to clone")
             return
 
         repo_name = item.text()
-        clone_path = QFileDialog.getExistingDirectory(self, "Select folder to clone into")
+        clone_path = QFileDialog.getExistingDirectory(
+            self, "Select folder to clone into"
+        )
         if not clone_path:
             return
 
@@ -192,7 +195,8 @@ class GitHelperGUI(QWidget):
         )
 
         try:
-            subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+            subprocess.run(cmd, shell=True, check=True,
+                           capture_output=True, text=True)
             QMessageBox.information(
                 self, "Success", f"Cloned {repo_name} to {clone_path}"
             )
@@ -203,7 +207,8 @@ class GitHelperGUI(QWidget):
 
     def create_repo(self):
         """Create a new bare remote repo"""
-        text, ok = QInputDialog.getText(self, "Create Repo", "Enter new repo name:")
+        text, ok = QInputDialog.getText(self, "Create Repo",
+                                        "Enter new repo name:")
         if not ok or not text:
             return
 
@@ -218,7 +223,8 @@ class GitHelperGUI(QWidget):
             QMessageBox.information(self, "Success", f"Created {repo_name}")
             self.list_repos()
         except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Error", f"Failed to create repo:\n{e.stderr}")
+            QMessageBox.critical(self, "Error",
+                                 f"Failed to create repo:\n{e.stderr}")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 
@@ -226,7 +232,8 @@ class GitHelperGUI(QWidget):
         """Delete a remote repository"""
         item = self.repo_list.currentItem()
         if not item:
-            QMessageBox.warning(self, "No Selection", "Please select a repo to delete")
+            QMessageBox.warning(self, "No Selection",
+                                "Please select a repo to delete")
             return
 
         repo_name = item.text()
@@ -234,7 +241,8 @@ class GitHelperGUI(QWidget):
             self,
             "Confirm Deletion",
             f"Delete remote repo '{repo_name}' permanently?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes |
+            QMessageBox.StandardButton.No,
         )
 
         if confirm == QMessageBox.StandardButton.No:
@@ -247,7 +255,8 @@ class GitHelperGUI(QWidget):
             QMessageBox.information(self, "Deleted", f"Removed {repo_name}")
             self.list_repos()
         except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Error", f"Failed to delete repo:\n{e.stderr}")
+            QMessageBox.critical(self, "Error",
+                                 f"Failed to delete repo:\n{e.stderr}")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 
@@ -275,7 +284,9 @@ class CommitHeatmapWindow(QWidget):
         # --- Controls
         control_box = QGroupBox("Controls")
         ctrl_layout = QHBoxLayout()
-        self.path_label = QLabel(f"Repo path: {self.repo_base or '(None selected)'}")
+        self.path_label = QLabel(
+            f"Repo path: {self.repo_base or '(None selected)'}"
+        )
         choose_path_btn = QPushButton("Choose Repos Folder")
         choose_path_btn.clicked.connect(self.choose_path)
         generate_btn = QPushButton("Generate Heatmap")
@@ -373,15 +384,13 @@ class CommitHeatmapWindow(QWidget):
         base = Path(os.path.expanduser(self.repo_base))
         repos = [p for p in base.iterdir() if (p / ".git").exists()]
 
-        total_repos = len(repos)
         if not repos:
             QMessageBox.warning(self, "No Repos Found",
                                 "No repositories found in this directory.")
             return
 
-        # Gather commit dates with per-repo details
         commit_counter = collections.Counter()
-        for i, repo in enumerate(repos, start=1):
+        for repo in repos:
             repo_name = repo.name
             cmd = [
                 "git", "-C", str(repo),
@@ -395,7 +404,9 @@ class CommitHeatmapWindow(QWidget):
                     date_str = line.strip()
                     if date_str:
                         if date_str not in self.day_details:
-                            self.day_details[date_str] = collections.Counter()
+                            self.day_details[date_str] = (
+                                collections.Counter()
+                            )
                         self.day_details[date_str][repo_name] += 1
                         commit_counter[date_str] += 1
             except subprocess.CalledProcessError:
@@ -408,34 +419,38 @@ class CommitHeatmapWindow(QWidget):
                                 "No commits found in the repositories.")
             return
 
-        # Prepare grid for last 365 days
         today = datetime.now().date()
         start_date = today - timedelta(days=364)
 
-        all_dates = [
-            start_date + timedelta(days=i) for i in range(365)
-        ]
+        # Find Sunday at or before start_date to align weeks properly
+        days_back = (start_date.weekday() + 1) % 7
+        week_start_date = start_date - timedelta(days=days_back)
+
+        # Generate sequential dates from Sunday to today
+        all_dates = []
+        current = week_start_date
+        while current <= today:
+            all_dates.append(current)
+            current += timedelta(days=1)
 
         max_commits = max(commit_counter.values() or [1])
 
-        # Set month labels on horizontal header
+        # Set month labels
         horizontal_labels = [""] * 53
-        current_month = None
-        col = 0
-        for week_start in range(0, 365, 7):
-            week_date = all_dates[week_start]
-            month_str = week_date.strftime("%b")
-            if month_str != current_month:
-                horizontal_labels[col] = month_str
-                current_month = month_str
-            col += 1
+        for col in range(53):
+            week_start_idx = col * 7
+            if week_start_idx < len(all_dates):
+                date = all_dates[week_start_idx]
+                if col == 0 or date.day <= 7:
+                    horizontal_labels[col] = date.strftime("%b")
+
         self.table.setHorizontalHeaderLabels(horizontal_labels)
 
-        # Fill grid
+        # Fill grid: each column is a week, each row is a day
         col = 0
-        for week_start in range(0, 365, 7):
-            for day_offset in range(7):
-                current_idx = week_start + day_offset
+        for week_start_idx in range(0, len(all_dates), 7):
+            for day_in_week in range(7):
+                current_idx = week_start_idx + day_in_week
                 if current_idx >= len(all_dates):
                     break
                 date = all_dates[current_idx]
@@ -444,7 +459,9 @@ class CommitHeatmapWindow(QWidget):
 
                 item = QTableWidgetItem()
                 if count > 0:
-                    intensity = int(255 - (min(1, count / max_commits) * 200))
+                    intensity = int(
+                        255 - (min(1, count / max_commits) * 200)
+                    )
                     color = QColor(200, intensity, 200)
                     item.setBackground(color)
                     tooltip = f"{date}: {count} commit(s)"
@@ -454,7 +471,7 @@ class CommitHeatmapWindow(QWidget):
                     tooltip = f"{date}: no commits"
 
                 item.setToolTip(tooltip)
-                row = (date.weekday() + 1) % 7
+                row = day_in_week
                 self.table.setItem(row, col, item)
                 self.cell_to_date[(row, col)] = date_str
             col += 1
@@ -466,14 +483,16 @@ class CommitHeatmapWindow(QWidget):
 
         date_str = self.cell_to_date.get((row, col))
         if not date_str:
-            QMessageBox.warning(self, "Error", "Could not determine date.")
+            QMessageBox.warning(self, "Error",
+                                "Could not determine date.")
             return
 
         details = self.day_details.get(date_str, {})
         total = sum(details.values())
 
         if not details:
-            QMessageBox.information(self, f"{date_str}", "No commits on this day.")
+            QMessageBox.information(self, f"{date_str}",
+                                    "No commits on this day.")
             return
 
         # Build message: sorted by count descending
