@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Git Helper - PyQt6 version with Local Commit Heatmap
+Commit Heatmap - Standalone GitHub-style Local Commit Heatmap
 """
 
 import subprocess
@@ -17,253 +17,16 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QGroupBox,
     QLabel,
-    QLineEdit,
     QPushButton,
-    QListWidget,
     QMessageBox,
     QFileDialog,
-    QInputDialog,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
 )
 from PyQt6.QtGui import QColor
 from PyQt6.QtCore import Qt
 
-CONFIG_PATH = Path.home() / ".githelperrc"
-
-
-class GitHelperGUI(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Git Helper - Manage Remote Repos")
-        self.resize(550, 420)
-
-        self.config = self.load_config()
-
-        # --- Layouts
-        main_layout = QVBoxLayout()
-        ssh_group = QGroupBox("SSH Settings")
-        ssh_layout = QVBoxLayout()
-
-        # --- First row: Server, User, Port (3 columns)
-        top_row = QHBoxLayout()
-
-        server_container = QVBoxLayout()
-        server_container.addWidget(QLabel("Server:"))
-        self.server_entry = QLineEdit()
-        self.server_entry.setText(self.config.get("server", "example.com"))
-        server_container.addWidget(self.server_entry)
-        top_row.addLayout(server_container)
-
-        user_container = QVBoxLayout()
-        user_container.addWidget(QLabel("User:"))
-        self.user_entry = QLineEdit()
-        self.user_entry.setText(self.config.get("user", "tux"))
-        user_container.addWidget(self.user_entry)
-        top_row.addLayout(user_container)
-
-        port_container = QVBoxLayout()
-        port_container.addWidget(QLabel("Port:"))
-        self.port_entry = QLineEdit()
-        self.port_entry.setText(self.config.get("port", "22"))
-        port_container.addWidget(self.port_entry)
-        top_row.addLayout(port_container)
-
-        ssh_layout.addLayout(top_row)
-
-        # --- Second row: Directory
-        dir_row = QHBoxLayout()
-        dir_row.addWidget(QLabel("Directory:"))
-        self.dir_entry = QLineEdit()
-        self.dir_entry.setText(self.config.get("dir", "~/repos"))
-        dir_row.addWidget(self.dir_entry)
-        ssh_layout.addLayout(dir_row)
-
-        # --- Buttons
-        button_row = QHBoxLayout()
-        list_button = QPushButton("List Repos")
-        clone_button = QPushButton("Clone")
-        create_button = QPushButton("Create Repo")
-        delete_button = QPushButton("Delete Repo")
-
-        for btn, func in [
-            (list_button, self.list_repos),
-            (clone_button, self.clone_repo),
-            (create_button, self.create_repo),
-            (delete_button, self.delete_repo),
-        ]:
-            btn.clicked.connect(func)
-            button_row.addWidget(btn)
-
-        ssh_layout.addLayout(button_row)
-        ssh_group.setLayout(ssh_layout)
-        main_layout.addWidget(ssh_group)
-
-        # --- Repo list
-        repo_group = QGroupBox("Repositories")
-        repo_layout = QVBoxLayout()
-        self.repo_list = QListWidget()
-        repo_layout.addWidget(self.repo_list)
-        repo_group.setLayout(repo_layout)
-        main_layout.addWidget(repo_group)
-
-        # --- New Heatmap Button (at bottom)
-        heatmap_button = QPushButton("Local Commit Heatmap")
-        heatmap_button.clicked.connect(self.show_heatmap_window)
-        main_layout.addWidget(heatmap_button)
-
-        self.setLayout(main_layout)
-
-    # == Config Management ==
-    def load_config(self):
-        if CONFIG_PATH.exists():
-            try:
-                with open(CONFIG_PATH, "r", encoding="utf-8") as cfg:
-                    return json.load(cfg)
-            except Exception:
-                pass
-        return {}
-
-    def save_config(self):
-        cfg = {
-            "server": self.server_entry.text(),
-            "user": self.user_entry.text(),
-            "port": self.port_entry.text(),
-            "dir": self.dir_entry.text(),
-        }
-        try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2)
-        except Exception as e:
-            QMessageBox.warning(self, "Warning", f"Failed to save config: {e}")
-
-    # == Core SSH Actions ==
-    def _run_ssh_command(self, command_text):
-        """Run a command on remote host through SSH"""
-        server = self.server_entry.text()
-        user = self.user_entry.text()
-        port = self.port_entry.text()
-
-        full_cmd = f"ssh {user}@{server} -p {port} '{command_text}'"
-
-        return subprocess.run(
-            full_cmd,
-            shell=True,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-
-    def list_repos(self):
-        self.save_config()  # auto-save settings each time
-        try:
-            ssh_dir = self.dir_entry.text()
-            cmd = f"ls {ssh_dir}/ | sed -e 's/\\.git//g'"
-            result = self._run_ssh_command(cmd)
-            self.repo_list.clear()
-            for repo in result.stdout.strip().splitlines():
-                if repo:
-                    self.repo_list.addItem(repo)
-        except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Error", f"SSH list failed:\n{e.stderr}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
-
-    def clone_repo(self):
-        item = self.repo_list.currentItem()
-        if not item:
-            QMessageBox.warning(self, "No Selection",
-                                "Please select a repo to clone")
-            return
-
-        repo_name = item.text()
-        clone_path = QFileDialog.getExistingDirectory(
-            self, "Select folder to clone into"
-        )
-        if not clone_path:
-            return
-
-        server = self.server_entry.text()
-        user = self.user_entry.text()
-        port = self.port_entry.text()
-        ssh_dir = self.dir_entry.text()
-
-        cmd = (
-            f"git clone ssh://{user}@{server}:{port}/{ssh_dir}/"
-            f"{repo_name}.git {clone_path}/{repo_name}"
-        )
-
-        try:
-            subprocess.run(cmd, shell=True, check=True,
-                           capture_output=True, text=True)
-            QMessageBox.information(
-                self, "Success", f"Cloned {repo_name} to {clone_path}"
-            )
-        except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Clone Failed", f"Error:\n{e.stderr}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
-
-    def create_repo(self):
-        """Create a new bare remote repo"""
-        text, ok = QInputDialog.getText(self, "Create Repo",
-                                        "Enter new repo name:")
-        if not ok or not text:
-            return
-
-        repo_name = text.strip()
-        if not repo_name.endswith(".git"):
-            repo_name = repo_name + ".git"
-
-        ssh_dir = self.dir_entry.text()
-        try:
-            cmd = f"git init --bare {ssh_dir}/{repo_name}"
-            self._run_ssh_command(cmd)
-            QMessageBox.information(self, "Success", f"Created {repo_name}")
-            self.list_repos()
-        except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Error",
-                                 f"Failed to create repo:\n{e.stderr}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
-
-    def delete_repo(self):
-        """Delete a remote repository"""
-        item = self.repo_list.currentItem()
-        if not item:
-            QMessageBox.warning(self, "No Selection",
-                                "Please select a repo to delete")
-            return
-
-        repo_name = item.text()
-        confirm = QMessageBox.question(
-            self,
-            "Confirm Deletion",
-            f"Delete remote repo '{repo_name}' permanently?",
-            QMessageBox.StandardButton.Yes |
-            QMessageBox.StandardButton.No,
-        )
-
-        if confirm == QMessageBox.StandardButton.No:
-            return
-
-        ssh_dir = self.dir_entry.text()
-        try:
-            cmd = f"rm -rf {ssh_dir}/{repo_name}.git"
-            self._run_ssh_command(cmd)
-            QMessageBox.information(self, "Deleted", f"Removed {repo_name}")
-            self.list_repos()
-        except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Error",
-                                 f"Failed to delete repo:\n{e.stderr}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
-
-    # == Open Heatmap Window ==
-    def show_heatmap_window(self):
-        self.heatmap_window = CommitHeatmapWindow()
-        self.heatmap_window.show()
+CONFIG_PATH = Path.home() / ".githelperrc"  # Shared with Git Helper app
 
 
 class CommitHeatmapWindow(QWidget):
@@ -328,7 +91,7 @@ class CommitHeatmapWindow(QWidget):
             "6-10 commits",
             "11-15 commits",
             "16-20 commits",
-            "21-25 commits",
+            "21+ commits",  # Adjusted to 21+ for the last bucket
         ]
         for i in range(len(self.colors)):
             color_box = QLabel()
@@ -515,6 +278,6 @@ class CommitHeatmapWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    win = GitHelperGUI()
+    win = CommitHeatmapWindow()
     win.show()
     sys.exit(app.exec())
