@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Git Helper - tkinter version with Local Commit Heatmap (no tkcalendar)
+Git Helper - tkinter version with Local Commit Heatmap
 """
 
 import subprocess
