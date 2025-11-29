@@ -70,33 +70,53 @@ class GithelperGUI:
         top_row.pack(fill=tk.X, padx=5, pady=5)
 
         ttk.Label(top_row, text="Server:").pack(side=tk.LEFT)
-        self.server_var = tk.StringVar(value=self.config.get("server", "example.com"))
-        ttk.Entry(top_row, textvariable=self.server_var, width=15).pack(side=tk.LEFT, padx=(0, 10))
+        self.server_var = tk.StringVar(
+            value=self.config.get("server", "example.com")
+        )
+        ttk.Entry(top_row, textvariable=self.server_var, width=15).pack(
+            side=tk.LEFT, padx=(0, 10)
+        )
 
         ttk.Label(top_row, text="User:").pack(side=tk.LEFT)
         self.user_var = tk.StringVar(value=self.config.get("user", "tux"))
-        ttk.Entry(top_row, textvariable=self.user_var, width=10).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Entry(top_row, textvariable=self.user_var, width=10).pack(
+            side=tk.LEFT, padx=(0, 10)
+        )
 
         ttk.Label(top_row, text="Port:").pack(side=tk.LEFT)
         self.port_var = tk.StringVar(value=self.config.get("port", "22"))
-        ttk.Entry(top_row, textvariable=self.port_var, width=5).pack(side=tk.LEFT)
+        ttk.Entry(top_row, textvariable=self.port_var, width=5).pack(
+            side=tk.LEFT
+        )
 
         # Directory row
         dir_row = ttk.Frame(ssh_frame)
         dir_row.pack(fill=tk.X, padx=5, pady=5)
 
         ttk.Label(dir_row, text="Directory:").pack(side=tk.LEFT)
-        self.dir_var = tk.StringVar(value=self.config.get("dir", "~/repos"))
-        ttk.Entry(dir_row, textvariable=self.dir_var).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        self.dir_var = tk.StringVar(
+            value=self.config.get("dir", "~/repos")
+        )
+        ttk.Entry(dir_row, textvariable=self.dir_var).pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10)
+        )
 
         # Buttons row
         button_row = ttk.Frame(ssh_frame)
         button_row.pack(fill=tk.X, padx=5, pady=5)
 
-        ttk.Button(button_row, text="List Repos", command=self.list_repos).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_row, text="Clone", command=self.clone_repo).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_row, text="Create Repo", command=self.create_repo).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_row, text="Delete Repo", command=self.delete_repo).pack(side=tk.LEFT)
+        ttk.Button(
+            button_row, text="List Repos", command=self.list_repos
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(
+            button_row, text="Clone", command=self.clone_repo
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(
+            button_row, text="Create Repo", command=self.create_repo
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(
+            button_row, text="Delete Repo", command=self.delete_repo
+        ).pack(side=tk.LEFT)
 
         # Repositories list
         repo_frame = ttk.LabelFrame(self.main_frame, text="Repositories")
@@ -111,21 +131,32 @@ class GithelperGUI:
         control_frame = ttk.Frame(self.heatmap_frame)
         control_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        self.path_label = ttk.Label(control_frame, text="Repo path: (None selected)")
+        self.path_label = ttk.Label(
+            control_frame, text="Repo path: (None selected)"
+        )
         self.path_label.pack(side=tk.LEFT)
 
-        ttk.Button(control_frame, text="Choose Folder", command=self.choose_path).pack(side=tk.LEFT, padx=5)
-        ttk.Button(control_frame, text="Generate Heatmap", command=self.generate_heatmap).pack(side=tk.LEFT, padx=5)
+        ttk.Button(
+            control_frame, text="Choose Folder", command=self.choose_path
+        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(
+            control_frame, text="Generate Heatmap",
+            command=self.generate_heatmap
+        ).pack(side=tk.LEFT, padx=5)
 
         # Heatmap display
         heatmap_container = ttk.Frame(self.heatmap_frame)
-        heatmap_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        heatmap_container.pack(fill=tk.BOTH, expand=True, padx=10,
+                               pady=(0, 10))
 
         # Canvas for heatmap
         self.canvas = tk.Canvas(heatmap_container, bg="white")
-        v_scroll = ttk.Scrollbar(heatmap_container, orient=tk.VERTICAL, command=self.canvas.yview)
-        h_scroll = ttk.Scrollbar(heatmap_container, orient=tk.HORIZONTAL, command=self.canvas.xview)
-        self.canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        v_scroll = ttk.Scrollbar(heatmap_container, orient=tk.VERTICAL,
+                                 command=self.canvas.yview)
+        h_scroll = ttk.Scrollbar(heatmap_container, orient=tk.HORIZONTAL,
+                                 command=self.canvas.xview)
+        self.canvas.configure(yscrollcommand=v_scroll.set,
+                              xscrollcommand=h_scroll.set)
 
         v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
@@ -144,16 +175,20 @@ class GithelperGUI:
             "#196127",  # Level 4
         ]
         labels = ["0", "1-5", "6-10", "11-15", "16+"]
-        
+
         for i, (color, label) in enumerate(zip(self.colors, labels)):
-            color_box = tk.Canvas(legend_frame, width=15, height=15, bg=color, highlightthickness=1, highlightbackground="black")
+            color_box = tk.Canvas(legend_frame, width=15, height=15,
+                                  bg=color, highlightthickness=1,
+                                  highlightbackground="black")
             color_box.pack(side=tk.LEFT, padx=(5, 0))
-            ttk.Label(legend_frame, text=label).pack(side=tk.LEFT, padx=(0, 10))
+            ttk.Label(legend_frame, text=label).pack(side=tk.LEFT,
+                                                     padx=(0, 10))
         ttk.Label(legend_frame, text="More commits").pack(side=tk.LEFT)
 
         # Initialize data structures
         self.repo_base = self.config.get("local_repo_base", "")
-        self.path_label.config(text=f"Repo path: {self.repo_base or '(None selected)'}")
+        self.path_label.config(text=f"Repo path: {self.repo_base or
+                                    '(None selected)'}")
         self.day_details = {}  # {date_str: {repo: count}}
         self.rectangles = []   # For cleanup
 
@@ -192,11 +227,14 @@ class GithelperGUI:
     def clone_repo(self):
         selection = self.repo_listbox.curselection()
         if not selection:
-            messagebox.showwarning("No Selection", "Please select a repo to clone")
+            messagebox.showwarning("No Selection",
+                                   "Please select a repo to clone")
             return
 
         repo_name = self.repo_listbox.get(selection[0])
-        clone_path = filedialog.askdirectory(title="Select folder to clone into")
+        clone_path = filedialog.askdirectory(
+            title="Select folder to clone into"
+        )
         if not clone_path:
             return
 
@@ -213,7 +251,8 @@ class GithelperGUI:
         try:
             subprocess.run(cmd, shell=True, check=True,
                            capture_output=True, text=True)
-            messagebox.showinfo("Success", f"Cloned {repo_name} to {clone_path}")
+            messagebox.showinfo("Success",
+                                f"Cloned {repo_name} to {clone_path}")
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Clone Failed", f"Error:\n{e.stderr}")
         except Exception as e:
@@ -221,7 +260,8 @@ class GithelperGUI:
 
     def create_repo(self):
         """Create a new bare remote repo"""
-        repo_name = simpledialog.askstring("Create Repo", "Enter new repo name:")
+        repo_name = simpledialog.askstring("Create Repo",
+                                           "Enter new repo name:")
         if not repo_name:
             return
 
@@ -236,7 +276,8 @@ class GithelperGUI:
             messagebox.showinfo("Success", f"Created {repo_name}")
             self.list_repos()
         except subprocess.CalledProcessError as e:
-            messagebox.showerror("Error", f"Failed to create repo:\n{e.stderr}")
+            messagebox.showerror("Error",
+                                 f"Failed to create repo:\n{e.stderr}")
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -244,7 +285,8 @@ class GithelperGUI:
         """Delete a remote repository"""
         selection = self.repo_listbox.curselection()
         if not selection:
-            messagebox.showwarning("No Selection", "Please select a repo to delete")
+            messagebox.showwarning("No Selection",
+                                   "Please select a repo to delete")
             return
 
         repo_name = self.repo_listbox.get(selection[0])
@@ -258,12 +300,13 @@ class GithelperGUI:
 
         ssh_dir = self.dir_var.get()
         try:
-            cmd = f"rm -rf {ssh_dir}/{repo_name}.git"
+            cmd = f"rm -rf {ssh_dir}/{repo_name}"
             self._run_ssh_command(cmd)
             messagebox.showinfo("Deleted", f"Removed {repo_name}")
             self.list_repos()
         except subprocess.CalledProcessError as e:
-            messagebox.showerror("Error", f"Failed to delete repo:\n{e.stderr}")
+            messagebox.showerror("Error",
+                                 f"Failed to delete repo:\n{e.stderr}")
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -281,7 +324,9 @@ class GithelperGUI:
             messagebox.showwarning("Save Error", str(e))
 
     def choose_path(self):
-        directory = filedialog.askdirectory(title="Select Local Repository Folder")
+        directory = filedialog.askdirectory(
+            title="Select Local Repository Folder"
+        )
         if directory:
             self.repo_base = directory
             self.path_label.config(text=f"Repo path: {self.repo_base}")
@@ -305,7 +350,8 @@ class GithelperGUI:
         repos = [p for p in base.iterdir() if (p / ".git").exists()]
 
         if not repos:
-            messagebox.showwarning("No Repos Found", "No repositories found in this directory.")
+            messagebox.showwarning("No Repos Found",
+                                   "No repositories found in this directory.")
             return
 
         commit_counter = collections.Counter()
@@ -323,7 +369,8 @@ class GithelperGUI:
                     date_str = line.strip()
                     if date_str:
                         if date_str not in self.day_details:
-                            self.day_details[date_str] = collections.Counter()
+                            self.day_details[date_str] = \
+                                collections.Counter()
                         self.day_details[date_str][repo_name] += 1
                         commit_counter[date_str] += 1
             except subprocess.CalledProcessError:
@@ -332,7 +379,8 @@ class GithelperGUI:
                 print(f"Error reading {repo}: {e}")
 
         if not commit_counter:
-            messagebox.showwarning("No Data", "No commits found in the repositories.")
+            messagebox.showwarning("No Data",
+                                   "No commits found in the repositories.")
             return
 
         # Create heatmap visualization
@@ -357,21 +405,26 @@ class GithelperGUI:
             all_dates.append(current)
             current += timedelta(days=1)
 
-        # Draw heatmap
+        # Dimensions
         cell_size = 15
         padding = 2
+        label_padding_x = 50
+        label_padding_y = 30
+
         self.canvas.delete("all")
-        
+
         # Create rectangles for each day
-        for col, week_start_idx in enumerate(range(0, len(all_dates), 7)):
+        num_weeks = (len(all_dates) + 6) // 7
+        for col in range(num_weeks):
             for day_in_week in range(7):
-                current_idx = week_start_idx + day_in_week
+                current_idx = col * 7 + day_in_week
                 if current_idx >= len(all_dates):
                     break
+
                 date = all_dates[current_idx]
                 date_str = str(date)
                 count = commit_counter.get(date_str, 0)
-                
+
                 # Determine color based on commit count
                 if count == 0:
                     color = self.colors[0]
@@ -383,49 +436,95 @@ class GithelperGUI:
                     color = self.colors[3]
                 else:
                     color = self.colors[4]
-                
-                x1 = col * (cell_size + padding)
+
+                # Position with padding for labels
+                x1 = label_padding_x + col * (cell_size + padding)
                 y1 = day_in_week * (cell_size + padding)
                 x2 = x1 + cell_size
                 y2 = y1 + cell_size
-                
+
                 rect = self.canvas.create_rectangle(
                     x1, y1, x2, y2,
                     fill=color,
                     outline="",
                     tags=date_str
                 )
-                
+
                 # Bind click event
-                self.canvas.tag_bind(rect, "<Button-1>", 
-                                    lambda e, d=date_str: self.show_day_details(d))
-                
+                self.canvas.tag_bind(rect, "<Button-1>",
+                                    lambda e, d=date_str:
+                                    self.show_day_details(d))
+
                 self.rectangles.append(rect)
 
-        # Set scroll region
-        max_x = ((len(all_dates) // 7) + 1) * (cell_size + padding)
-        max_y = 7 * (cell_size + padding)
-        self.canvas.config(scrollregion=(0, 0, max_x, max_y))
-
-        # Add month labels
-        month_y = max_y + 20
-        for col, week_start_idx in enumerate(range(0, len(all_dates), 7)):
-            week_start = all_dates[week_start_idx]
-            if col == 0 or week_start.day <= 7:
-                month_name = week_start.strftime("%b")
-                self.canvas.create_text(
-                    col * (cell_size + padding) + cell_size/2,
-                    month_y,
-                    text=month_name,
-                    anchor="n"
-                )
-
-        # Add weekday labels
+        # === Y-AXIS: Weekday labels ===
         day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        label_x = -20
         for i, day in enumerate(day_labels):
-            y_pos = i * (cell_size + padding) + cell_size/2
-            self.canvas.create_text(label_x, y_pos, text=day, anchor="e")
+            y_pos = i * (cell_size + padding) + cell_size / 2
+            self.canvas.create_text(
+                label_padding_x - 10,
+                y_pos,
+                text=day,
+                anchor="e",
+                font=("Arial", 9, "bold"),
+                fill="#196127"
+            )
+
+        # === X-AXIS: Month labels - Last 12 months ===
+        month_y_pos = 7 * (cell_size + padding) + 10
+
+        # Build list of last 12 months working backwards from today
+        months_to_show = []
+        current_month = today.replace(day=1)
+        for _ in range(12):
+            months_to_show.insert(0, (current_month.month, current_month.year))
+            current_month -= timedelta(days=1)
+            current_month = current_month.replace(day=1)
+
+        months_to_show_set = set(months_to_show)
+
+        # Label only the first occurrence of each month
+        labeled_months = set()
+        for col in range(num_weeks):
+            current_idx = col * 7
+            if current_idx < len(all_dates):
+                date = all_dates[current_idx]
+                month_year = (date.month, date.year)
+
+                if (month_year in months_to_show_set and
+                    month_year not in labeled_months):
+                    x_pos = (label_padding_x +
+                            col * (cell_size + padding) + cell_size / 2)
+                    month_label = date.strftime("%b")
+                    self.canvas.create_text(
+                        x_pos,
+                        month_y_pos,
+                        text=month_label,
+                        anchor="n",
+                        font=("Arial", 9, "bold"),
+                        fill="#196127"
+                    )
+                    labeled_months.add(month_year)
+
+        # === Axis lines for clarity ===
+        heatmap_width = label_padding_x + num_weeks * (cell_size + padding)
+        heatmap_height = 7 * (cell_size + padding)
+
+        self.canvas.create_line(
+            label_padding_x - 5, 0,
+            label_padding_x - 5, heatmap_height,
+            fill="gray", width=1, dash=(2, 2)
+        )
+        self.canvas.create_line(
+            label_padding_x, heatmap_height + 5,
+            heatmap_width, heatmap_height + 5,
+            fill="gray", width=1, dash=(2, 2)
+        )
+
+        # Set scroll region
+        total_width = heatmap_width + 20
+        total_height = heatmap_height + label_padding_y + 40
+        self.canvas.config(scrollregion=(0, 0, total_width, total_height))
 
     def show_day_details(self, date_str):
         """Show popup with repos that committed on this day"""
@@ -453,7 +552,8 @@ class GithelperGUI:
         text.insert(tk.END, msg)
         text.config(state=tk.DISABLED)
 
-        scrollbar = ttk.Scrollbar(text, orient=tk.VERTICAL, command=text.yview)
+        scrollbar = ttk.Scrollbar(text, orient=tk.VERTICAL,
+                                  command=text.yview)
         text.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
