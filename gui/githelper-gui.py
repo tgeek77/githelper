@@ -1,8 +1,3 @@
-#!/usr/bin/python3
-"""
-Git Helper - tkinter version with Local Commit Heatmap
-"""
-
 import subprocess
 import os
 import json
@@ -18,10 +13,10 @@ from tkinter import (
 CONFIG_PATH = Path.home() / ".githelperrc"
 
 
-class GitHelperGUI:
+class GithelperGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Git Helper - Manage Remote Repos")
+        self.root.title("Githelper - Easy Self Hosted Repos")
         self.root.geometry("600x500")
 
         self.config = self.load_config()
@@ -465,5 +460,5 @@ class GitHelperGUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = GitHelperGUI(root)
+    app = GithelperGUI(root)
     root.mainloop()
