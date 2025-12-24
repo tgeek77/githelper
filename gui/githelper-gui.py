@@ -17,7 +17,7 @@ class GithelperGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Githelper - Easy Self Hosted Repos")
-        self.root.geometry("600x500")
+        self.root.geometry("1080x450")
 
         self.config = self.load_config()
 
@@ -93,7 +93,7 @@ class GithelperGUI:
         dir_row = ttk.Frame(ssh_frame)
         dir_row.pack(fill=tk.X, padx=5, pady=5)
 
-        ttk.Label(dir_row, text="Directory:").pack(side=tk.LEFT)
+        ttk.Label(dir_row, text="Remote Directory:").pack(side=tk.LEFT)
         self.dir_var = tk.StringVar(
             value=self.config.get("dir", "~/repos")
         )
