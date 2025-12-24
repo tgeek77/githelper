@@ -122,8 +122,14 @@ class GithelperGUI:
         repo_frame = ttk.LabelFrame(self.main_frame, text="Repositories")
         repo_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
-        self.repo_listbox = tk.Listbox(repo_frame)
-        self.repo_listbox.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        # Create scrollbar
+        scrollbar = ttk.Scrollbar(repo_frame, orient=tk.VERTICAL)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Create listbox and connect it to scrollbar
+        self.repo_listbox = tk.Listbox(repo_frame, yscrollcommand=scrollbar.set)
+        self.repo_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        scrollbar.config(command=self.repo_listbox.yview)
 
     # == Heatmap Tab UI ==
     def create_heatmap_tab(self):
