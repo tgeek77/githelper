@@ -1,4 +1,4 @@
-## About:
+## About
 
 A lot of us want to create our own private git repos without needing to rely on third-party tools like GitHub, GitLab, or even Gitea. If you're concerned about privacy, cloud-based tools always present issues because Terms of Service could change at any time, not to mention the fact that well-known services tend to be targets for hackers. Even self-hosting a service like Gitea or GitLab means that you need to worry about the proper care and updates of this software. Often, they have tons of services that you will never need.
 
@@ -6,16 +6,65 @@ Instead, what about just using git directly to create and clone repos without ne
 
 I hope they make your work a little easier if you want to go away from big hosted services.
 
-## Dependancies
-### For GUI:
+## What’s included
 
-Ubuntu/Debian:
-- python3-pyqt6
+- **CLI** (`cli/githelper.py`): manage bare repos locally or over SSH
+- **GUI** (`gui/githelper-gui.py`, Tkinter):
+  - **Remote Repos**: list/clone/create/rename/fork-copy/archive/delete on an SSH host
+  - **Local Repos**: scan a “projects” folder that contains many different repos (GitHub/GitLab/private), view rich metadata, fetch/pull, open folder, launch `lazygit`
+  - **Local Commit Heatmap**: a GitHub-style activity heatmap across your local repo collection
 
+## Dependencies
 
-## How to Use githelper:
+### Required
 
-`githelper.py` allows you to use any SSH connection as a place to store git repositories. This can be on a Raspberry Pi in your own home or on a server in another country. As long as you have SSH access to that device, `githelper.py` will be able to work with it.
+- **Python 3**
+- **git**
+- **ssh** (for remote operations)
+
+### GUI (Tkinter)
+
+Tkinter ships with Python on most platforms. If your OS packages it separately, install the Tk bindings for Python (package names vary by distro).
+
+### Optional
+
+- **`lazygit`**: the Local Repos tab can open `lazygit` in a terminal for the selected repo  
+  Install instructions: `https://github.com/jesseduffield/lazygit#installation`
+- **`xterm`** (Linux/*BSD): used to launch `lazygit` in a terminal window
+
+## Configuration
+
+The GUI stores settings in `~/.githelperrc` (JSON). This includes:
+
+- SSH server/user/port and remote repo directory
+- the local base folder used for scanning repos and generating the heatmap
+
+## How to use
+
+### GUI
+
+Run:
+
+```bash
+python3 gui/githelper-gui.py
+```
+
+Remote Repo workflow:
+
+- Enter **Server/User/Port/Remote Directory**
+- Click **List Repos**
+- Select a repo and use **Clone/Create/Rename/Fork-Copy/Archive/Delete**
+
+Local Repo workflow:
+
+- Choose a **Base folder** containing your local repos (a single directory that contains many projects)
+- Click **Scan Repos**
+- Select a repo to view metadata + commit history
+- Use **Fetch**, **Pull**, **Open Folder**, or **lazygit**
+
+### CLI
+
+`cli/githelper.py` allows you to use any SSH connection as a place to store git repositories. This can be on a Raspberry Pi in your own home or on a server in another country. As long as you have SSH access to that device, `cli/githelper.py` will be able to work with it.
 
 ```
 usage: githelper.py [-h] [--server SERVER] [--user USER] [--list] [--clone CLONE] [--new NEW] [--archive ARCHIVE] [--remove REMOVE] 
@@ -46,30 +95,8 @@ options:
 ### Note on Cloning:
 The clone function can seem like it froze up if the repository that you are cloning is very large and your connection is slow.
 
-## Updates:
-- We have a GUI! Check out `gui/githelper-qt6.py`
+## Tips
 
-- Added rename and fork functions.
-  - **Rename** will rename the repository on the server; you will need to re-clone the repo or manually change the upstream repo URL in your local repo.
-  - **Fork** will copy an existing repository on the server to a new name. You can then clone the fork to a new local repo. The original and the fork will have no relation, so if you decide to merge them again in the future, that will need to be done manually.
-
-- `aliases.md` contains a few BASH aliases that you can use with githelper. I thought long and hard about writing a function into githelper that would cache your settings so you don't have to write them manually every time. I think wrapping a simple alias around the command is a better way to go.
-
-There is one more option if you don't want to use aliases:
-
-Open `githelper.py` in a text editor and look for this code:
-
-```python
-# Add the arguments for using your specific server
-parser.add_argument('--server', default="example.com", help='What server should I use?')
-parser.add_argument('--user', default="tux", help='What user should I use?')
-```
-
-You can simply change example.com to your server and tux to your username.
-
-You can do the same thing with the port number. Personally, I don't use the standard port 22. If you're like me, you can change that also.
-
-```
-python
-parser.add_argument('--port', '-p', default="22", help='Set the ssh port to something other than 22')
-```
+- **Rename**: renames the bare repo on the server. Your existing local clone will still point at the old URL until you update `origin` (or re-clone).
+- **Fork/Copy**: copies an existing bare repo to a new name on the server. It does not retain any “relationship” like GitHub forks do.
+- **Fast defaults**: if you don’t want to type flags in the CLI, `aliases.md` can hold shell aliases for your common server/user/dir/port values.
