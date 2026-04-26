@@ -2,6 +2,8 @@ import subprocess
 import os
 import json
 import collections
+import threading
+import shlex
 from datetime import datetime, timedelta
 from pathlib import Path
 import tkinter as tk
@@ -20,6 +22,7 @@ class GithelperGUI:
         self.root.geometry("1080x450")
 
         self.config = self.load_config()
+        self._task_running = False
 
         # Create notebook for tabs
         self.notebook = ttk.Notebook(root)
@@ -47,17 +50,78 @@ class GithelperGUI:
         return {}
 
     def save_config(self):
-        cfg = {
-            "server": self.server_var.get(),
-            "user": self.user_var.get(),
-            "port": self.port_var.get(),
-            "dir": self.dir_var.get(),
-        }
+        self.config["server"] = self.server_var.get().strip()
+        self.config["user"] = self.user_var.get().strip()
+        self.config["port"] = self.port_var.get().strip()
+        self.config["dir"] = self.dir_var.get().strip()
+        self.config["local_repo_base"] = self.repo_base or ""
         try:
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2)
+                json.dump(self.config, f, indent=2)
         except Exception as e:
             messagebox.showwarning("Warning", f"Failed to save config: {e}")
+
+    # == UI Helpers ==
+    def _set_status(self, text):
+        self.status_var.set(text)
+
+    def _append_log(self, text):
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.insert(tk.END, text.rstrip() + "\n")
+        self.log_text.see(tk.END)
+        self.log_text.config(state=tk.DISABLED)
+
+    def _validate_ssh_inputs(self):
+        server = self.server_var.get().strip()
+        user = self.user_var.get().strip()
+        port = self.port_var.get().strip()
+        ssh_dir = self.dir_var.get().strip()
+
+        if not server or not user or not ssh_dir:
+            raise ValueError("Server, User, and Remote Directory are required.")
+        if not port.isdigit():
+            raise ValueError("Port must be a number.")
+        return server, user, port, ssh_dir
+
+    def _run_in_background(self, label, work_fn, done_fn=None):
+        if self._task_running:
+            messagebox.showinfo("Busy", "Another operation is running. Please wait.")
+            return
+
+        self._task_running = True
+        self._set_status(f"{label}…")
+        self._append_log(f"[{label}] started")
+
+        def runner():
+            try:
+                result = work_fn()
+                error = None
+            except Exception as e:
+                result = None
+                error = e
+
+            def finish():
+                self._task_running = False
+                if error is not None:
+                    err_text = str(error)
+                    if isinstance(error, subprocess.CalledProcessError):
+                        stderr = (error.stderr or "").strip()
+                        if stderr:
+                            err_text = f"{err_text}\n\n--- stderr ---\n{stderr}"
+                    self._set_status(f"{label} failed")
+                    self._append_log(f"[{label}] ERROR: {err_text}")
+                    messagebox.showerror("Error", f"{label} failed:\n{err_text}")
+                    return
+
+                self._set_status(f"{label} done")
+                self._append_log(f"[{label}] done")
+                if done_fn is not None:
+                    done_fn(result)
+
+            self.root.after(0, finish)
+
+        t = threading.Thread(target=runner, daemon=True)
+        t.start()
 
     # == Main Tab UI ==
     def create_main_tab(self):
@@ -115,6 +179,15 @@ class GithelperGUI:
             button_row, text="Create Repo", command=self.create_repo
         ).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(
+            button_row, text="Rename", command=self.rename_repo
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(
+            button_row, text="Fork/Copy", command=self.fork_repo
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(
+            button_row, text="Archive", command=self.archive_repo
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(
             button_row, text="Delete Repo", command=self.delete_repo
         ).pack(side=tk.LEFT)
 
@@ -130,6 +203,24 @@ class GithelperGUI:
         self.repo_listbox = tk.Listbox(repo_frame, yscrollcommand=scrollbar.set)
         self.repo_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         scrollbar.config(command=self.repo_listbox.yview)
+
+        # Log + status
+        bottom = ttk.Frame(self.main_frame)
+        bottom.pack(fill=tk.BOTH, padx=10, pady=(0, 10))
+
+        status_row = ttk.Frame(bottom)
+        status_row.pack(fill=tk.X)
+        self.status_var = tk.StringVar(value="Ready")
+        ttk.Label(status_row, textvariable=self.status_var).pack(side=tk.LEFT)
+
+        log_frame = ttk.LabelFrame(bottom, text="Log")
+        log_frame.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
+        log_scroll = ttk.Scrollbar(log_frame, orient=tk.VERTICAL)
+        log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log_text = tk.Text(log_frame, height=6, wrap=tk.WORD, state=tk.DISABLED)
+        self.log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        log_scroll.config(command=self.log_text.yview)
+        self.log_text.configure(yscrollcommand=log_scroll.set)
 
     # == Heatmap Tab UI ==
     def create_heatmap_tab(self):
@@ -193,42 +284,81 @@ class GithelperGUI:
 
         # Initialize data structures
         self.repo_base = self.config.get("local_repo_base", "")
-        self.path_label.config(text=f"Repo path: {self.repo_base or
-                                    '(None selected)'}")
+        label = self.repo_base if self.repo_base else "(None selected)"
+        self.path_label.config(text=f"Repo path: {label}")
         self.day_details = {}  # {date_str: {repo: count}}
         self.rectangles = []   # For cleanup
 
     # == Core SSH Actions ==
     def _run_ssh_command(self, command_text):
         """Run a command on remote host through SSH"""
-        server = self.server_var.get()
-        user = self.user_var.get()
-        port = self.port_var.get()
+        server, user, port, _ssh_dir = self._validate_ssh_inputs()
+        cmd = ["ssh", "-p", port, f"{user}@{server}", command_text]
+        return subprocess.run(cmd, check=True, capture_output=True, text=True)
 
-        full_cmd = f"ssh {user}@{server} -p {port} '{command_text}'"
+    def _remote_cd_cmd(self, ssh_dir):
+        ssh_dir = (ssh_dir or "").strip()
+        if ssh_dir == "~":
+            return 'cd -- "$HOME"'
+        if ssh_dir.startswith("~/"):
+            rest = ssh_dir[2:].rstrip("/")
+            return 'cd -- "$HOME"/' + shlex.quote(rest)
+        return f"cd -- {shlex.quote(ssh_dir.rstrip('/'))}"
 
-        return subprocess.run(
-            full_cmd,
-            shell=True,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+    def _repo_git_dirname(self, repo_name_no_suffix):
+        repo = (repo_name_no_suffix or "").strip().removesuffix(".git")
+        return repo + ".git"
+
+    def _remote_path_for_git_url(self, ssh_dir):
+        """
+        Build an ssh:// URL path segment that works with home-relative dirs.
+        Git's ssh URL supports /~/ to mean "home directory".
+        """
+        ssh_dir = (ssh_dir or "").strip().rstrip("/")
+        if ssh_dir == "~":
+            return "/~"
+        if ssh_dir.startswith("~/"):
+            return "/~/" + ssh_dir[2:]
+        if ssh_dir.startswith("/"):
+            return ssh_dir
+        # Treat other relative paths as relative to home
+        return "/~/" + ssh_dir
 
     def list_repos(self):
-        self.save_config()  # auto-save settings each time
-        try:
-            ssh_dir = self.dir_var.get()
-            cmd = f"ls {ssh_dir}/ | sed -e 's/\\.git//g'"
-            result = self._run_ssh_command(cmd)
+        self.save_config()
+
+        def work():
+            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
+            ssh_dir = ssh_dir.strip()
+            # Build a safe 'cd' that still expands "~" on the remote host.
+            # Quoting "~" (e.g. 'cd "~/repos"') prevents expansion, so we
+            # translate it to $HOME explicitly.
+            if ssh_dir == "~":
+                cd_cmd = 'cd -- "$HOME"'
+            elif ssh_dir.startswith("~/"):
+                rest = ssh_dir[2:].rstrip("/")
+                # $HOME + "/" + rest, where rest is safely single-quoted.
+                cd_cmd = 'cd -- "$HOME"/' + shlex.quote(rest)
+            else:
+                cd_cmd = f"cd -- {shlex.quote(ssh_dir.rstrip('/'))}"
+            cmd = (
+                "set -e; "
+                f"{cd_cmd}; "
+                "for d in *.git; do "
+                "  [ -d \"$d\" ] || continue; "
+                "  printf '%s\n' \"${d%.git}\"; "
+                "done"
+            )
+            return self._run_ssh_command(cmd).stdout
+
+        def done(stdout):
             self.repo_listbox.delete(0, tk.END)
-            for repo in result.stdout.strip().splitlines():
+            for repo in stdout.strip().splitlines():
+                repo = repo.strip()
                 if repo:
                     self.repo_listbox.insert(tk.END, repo)
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Error", f"SSH list failed:\n{e.stderr}")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+
+        self._run_in_background("List repos", work, done)
 
     def clone_repo(self):
         selection = self.repo_listbox.curselection()
@@ -243,26 +373,20 @@ class GithelperGUI:
         )
         if not clone_path:
             return
+        self.save_config()
 
-        server = self.server_var.get()
-        user = self.user_var.get()
-        port = self.port_var.get()
-        ssh_dir = self.dir_var.get()
+        def work():
+            server, user, port, ssh_dir = self._validate_ssh_inputs()
+            dest = str(Path(clone_path) / repo_name)
+            url_path = self._remote_path_for_git_url(ssh_dir)
+            url = f"ssh://{user}@{server}:{port}{url_path}/{repo_name}.git"
+            cmd = ["git", "clone", url, dest]
+            return subprocess.run(cmd, check=True, capture_output=True, text=True)
 
-        cmd = (
-            f"git clone ssh://{user}@{server}:{port}/{ssh_dir}/"
-            f"{repo_name}.git {clone_path}/{repo_name}"
-        )
+        def done(_result):
+            messagebox.showinfo("Success", f"Cloned {repo_name} to {clone_path}")
 
-        try:
-            subprocess.run(cmd, shell=True, check=True,
-                           capture_output=True, text=True)
-            messagebox.showinfo("Success",
-                                f"Cloned {repo_name} to {clone_path}")
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Clone Failed", f"Error:\n{e.stderr}")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+        self._run_in_background(f"Clone {repo_name}", work, done)
 
     def create_repo(self):
         """Create a new bare remote repo"""
@@ -271,21 +395,21 @@ class GithelperGUI:
         if not repo_name:
             return
 
-        repo_name = repo_name.strip()
-        if not repo_name.endswith(".git"):
-            repo_name = repo_name + ".git"
+        repo_name = repo_name.strip().removesuffix(".git")
+        self.save_config()
 
-        ssh_dir = self.dir_var.get()
-        try:
-            cmd = f"git init --bare {ssh_dir}/{repo_name}"
-            self._run_ssh_command(cmd)
-            messagebox.showinfo("Success", f"Created {repo_name}")
+        def work():
+            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
+            cd_cmd = self._remote_cd_cmd(ssh_dir)
+            repo_git = shlex.quote(self._repo_git_dirname(repo_name))
+            cmd = f"set -e; {cd_cmd}; git init --bare {repo_git}"
+            return self._run_ssh_command(cmd)
+
+        def done(_):
+            messagebox.showinfo("Success", f"Created {repo_name}.git")
             self.list_repos()
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Error",
-                                 f"Failed to create repo:\n{e.stderr}")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+
+        self._run_in_background(f"Create {repo_name}", work, done)
 
     def delete_repo(self):
         """Delete a remote repository"""
@@ -303,31 +427,105 @@ class GithelperGUI:
 
         if not confirm:
             return
+        self.save_config()
 
-        ssh_dir = self.dir_var.get()
-        try:
-            cmd = f"rm -rf {ssh_dir}/{repo_name}"
-            self._run_ssh_command(cmd)
-            messagebox.showinfo("Deleted", f"Removed {repo_name}")
+        def work():
+            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
+            cd_cmd = self._remote_cd_cmd(ssh_dir)
+            repo_git = shlex.quote(self._repo_git_dirname(repo_name))
+            cmd = f"set -e; {cd_cmd}; rm -rf {repo_git}"
+            return self._run_ssh_command(cmd)
+
+        def done(_):
+            messagebox.showinfo("Deleted", f"Removed {repo_name}.git")
             self.list_repos()
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Error",
-                                 f"Failed to delete repo:\n{e.stderr}")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+
+        self._run_in_background(f"Delete {repo_name}", work, done)
+
+    def rename_repo(self):
+        selection = self.repo_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a repo to rename")
+            return
+
+        old_name = self.repo_listbox.get(selection[0]).strip().removesuffix(".git")
+        new_name = simpledialog.askstring("Rename Repo", f"Rename '{old_name}' to:")
+        if not new_name:
+            return
+        new_name = new_name.strip().removesuffix(".git")
+        if new_name == old_name:
+            return
+
+        self.save_config()
+
+        def work():
+            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
+            cd_cmd = self._remote_cd_cmd(ssh_dir)
+            old_git = shlex.quote(self._repo_git_dirname(old_name))
+            new_git = shlex.quote(self._repo_git_dirname(new_name))
+            cmd = f"set -e; {cd_cmd}; mv -v {old_git} {new_git}"
+            return self._run_ssh_command(cmd)
+
+        def done(_):
+            messagebox.showinfo("Success", f"Renamed {old_name} -> {new_name}")
+            self.list_repos()
+
+        self._run_in_background(f"Rename {old_name}", work, done)
+
+    def fork_repo(self):
+        selection = self.repo_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a repo to copy")
+            return
+
+        old_name = self.repo_listbox.get(selection[0]).strip().removesuffix(".git")
+        new_name = simpledialog.askstring("Fork/Copy Repo", f"Copy '{old_name}' to:")
+        if not new_name:
+            return
+        new_name = new_name.strip().removesuffix(".git")
+        if new_name == old_name:
+            return
+
+        self.save_config()
+
+        def work():
+            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
+            cd_cmd = self._remote_cd_cmd(ssh_dir)
+            old_git = shlex.quote(self._repo_git_dirname(old_name))
+            new_git = shlex.quote(self._repo_git_dirname(new_name))
+            cmd = f"set -e; {cd_cmd}; cp -R {old_git} {new_git}"
+            return self._run_ssh_command(cmd)
+
+        def done(_):
+            messagebox.showinfo("Success", f"Copied {old_name} -> {new_name}")
+            self.list_repos()
+
+        self._run_in_background(f"Copy {old_name}", work, done)
+
+    def archive_repo(self):
+        selection = self.repo_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a repo to archive")
+            return
+
+        repo_name = self.repo_listbox.get(selection[0]).strip().removesuffix(".git")
+        self.save_config()
+
+        def work():
+            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
+            cd_cmd = self._remote_cd_cmd(ssh_dir)
+            repo_git = shlex.quote(self._repo_git_dirname(repo_name))
+            out_name = shlex.quote(repo_name + ".tgz")
+            cmd = f"set -e; {cd_cmd}; tar -czf {out_name} {repo_git}"
+            return self._run_ssh_command(cmd)
+
+        def done(_):
+            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
+            messagebox.showinfo("Archived", f"Created {ssh_dir.rstrip('/')}/{repo_name}.tgz on remote host")
+
+        self._run_in_background(f"Archive {repo_name}", work, done)
 
     # == Heatmap Functions ==
-    def save_config(self):
-        self.config["server"] = self.server_var.get()
-        self.config["user"] = self.user_var.get()
-        self.config["port"] = self.port_var.get()
-        self.config["dir"] = self.dir_var.get()
-        self.config["local_repo_base"] = self.repo_base
-        try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(self.config, f, indent=2)
-        except Exception as e:
-            messagebox.showwarning("Save Error", str(e))
 
     def choose_path(self):
         directory = filedialog.askdirectory(
