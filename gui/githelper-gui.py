@@ -7,6 +7,7 @@ import shlex
 import sys
 import shutil
 import webbrowser
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 import tkinter as tk
@@ -18,6 +19,50 @@ from tkinter import (
 CONFIG_PATH = Path.home() / ".githelperrc"
 
 
+class HeatmapTooltip:
+    """Borderless floating label shown at the pointer on heatmap click."""
+
+    def __init__(self, parent):
+        self.parent = parent
+        self._tip = None
+
+    def show(self, event, text):
+        self.hide()
+        tip = tk.Toplevel(self.parent)
+        tip.wm_overrideredirect(True)
+        tip.wm_attributes("-topmost", True)
+        label = tk.Label(
+            tip,
+            text=text,
+            justify=tk.LEFT,
+            background="#ffffe0",
+            relief=tk.SOLID,
+            borderwidth=1,
+            padx=8,
+            pady=6,
+            font=("TkDefaultFont", 9),
+        )
+        label.pack()
+        tip.update_idletasks()
+        x = event.x_root + 16
+        y = event.y_root + 16
+        w = tip.winfo_width()
+        h = tip.winfo_height()
+        screen_w = tip.winfo_screenwidth()
+        screen_h = tip.winfo_screenheight()
+        if x + w > screen_w:
+            x = max(0, screen_w - w - 4)
+        if y + h > screen_h:
+            y = max(0, screen_h - h - 4)
+        tip.geometry(f"+{x}+{y}")
+        self._tip = tip
+
+    def hide(self):
+        if self._tip is not None:
+            self._tip.destroy()
+            self._tip = None
+
+
 class GithelperGUI:
     def __init__(self, root):
         self.root = root
@@ -25,7 +70,11 @@ class GithelperGUI:
         self.root.geometry("1080x450")
 
         self.config = self.load_config()
-        self._task_running = False
+        self._active_tasks = 0
+        self._repo_details_gen = 0
+        self._local_details_gen = 0
+        self._list_repos_gen = 0
+        self._scan_local_gen = 0
 
         # Create notebook for tabs
         self.notebook = ttk.Notebook(root)
@@ -74,10 +123,27 @@ class GithelperGUI:
         self.status_var.set(text)
 
     def _append_log(self, text):
-        self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, text.rstrip() + "\n")
         self.log_text.see(tk.END)
-        self.log_text.config(state=tk.DISABLED)
+
+    def _configure_readonly_text(self, widget):
+        widget.bind("<Key>", self._on_readonly_key)
+        widget.bind("<<Paste>>", lambda _e: "break")
+
+    def _on_readonly_key(self, event):
+        if event.state & 0x4 and event.keysym.lower() in ("c", "a"):
+            return
+        if event.keysym in (
+            "Left", "Right", "Up", "Down", "Home", "End",
+            "Prior", "Next", "Tab",
+            "Shift_L", "Shift_R", "Control_L", "Control_R",
+        ):
+            return
+        if event.char and event.char.isprintable():
+            return "break"
+        if event.keysym in ("BackSpace", "Delete", "Return", "space"):
+            return "break"
+        return None
 
     def _validate_ssh_inputs(self):
         server = self.server_var.get().strip()
@@ -92,12 +158,10 @@ class GithelperGUI:
         return server, user, port, ssh_dir
 
     def _run_in_background(self, label, work_fn, done_fn=None):
-        if self._task_running:
-            messagebox.showinfo("Busy", "Another operation is running. Please wait.")
-            return
-
-        self._task_running = True
-        self._set_status(f"{label}…")
+        self._active_tasks += 1
+        active = self._active_tasks
+        status = f"{label}… ({active} active)" if active > 1 else f"{label}…"
+        self._set_status(status)
         self._append_log(f"[{label}] started")
 
         def runner():
@@ -109,7 +173,7 @@ class GithelperGUI:
                 error = e
 
             def finish():
-                self._task_running = False
+                self._active_tasks -= 1
                 if error is not None:
                     err_text = str(error)
                     if isinstance(error, subprocess.CalledProcessError):
@@ -213,7 +277,9 @@ class GithelperGUI:
         scrollbar = ttk.Scrollbar(list_container, orient=tk.VERTICAL)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.repo_listbox = tk.Listbox(list_container, yscrollcommand=scrollbar.set)
+        self.repo_listbox = tk.Listbox(
+            list_container, yscrollcommand=scrollbar.set, exportselection=False
+        )
         self.repo_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.repo_listbox.yview)
 
@@ -236,27 +302,34 @@ class GithelperGUI:
         self.details_notebook.add(merges_tab, text="Merge History")
         self.details_notebook.add(commits_tab, text="Commit History")
 
-        self.meta_text = tk.Text(meta_tab, wrap=tk.WORD, state=tk.DISABLED, height=10)
+        self.meta_text = tk.Text(meta_tab, wrap=tk.WORD, height=10)
         meta_scroll = ttk.Scrollbar(meta_tab, orient=tk.VERTICAL, command=self.meta_text.yview)
         self.meta_text.configure(yscrollcommand=meta_scroll.set)
         meta_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.meta_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self._configure_readonly_text(self.meta_text)
 
-        self.merges_text = tk.Text(merges_tab, wrap=tk.NONE, state=tk.DISABLED, height=10)
+        self.merges_text = tk.Text(merges_tab, wrap=tk.NONE, height=10)
         merges_v = ttk.Scrollbar(merges_tab, orient=tk.VERTICAL, command=self.merges_text.yview)
         merges_h = ttk.Scrollbar(merges_tab, orient=tk.HORIZONTAL, command=self.merges_text.xview)
         self.merges_text.configure(yscrollcommand=merges_v.set, xscrollcommand=merges_h.set)
         merges_v.pack(side=tk.RIGHT, fill=tk.Y)
         merges_h.pack(side=tk.BOTTOM, fill=tk.X)
         self.merges_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self._configure_readonly_text(self.merges_text)
 
-        self.commits_text = tk.Text(commits_tab, wrap=tk.NONE, state=tk.DISABLED, height=10)
+        self.commits_text = tk.Text(commits_tab, wrap=tk.NONE, height=10)
         commits_v = ttk.Scrollbar(commits_tab, orient=tk.VERTICAL, command=self.commits_text.yview)
         commits_h = ttk.Scrollbar(commits_tab, orient=tk.HORIZONTAL, command=self.commits_text.xview)
         self.commits_text.configure(yscrollcommand=commits_v.set, xscrollcommand=commits_h.set)
         commits_v.pack(side=tk.RIGHT, fill=tk.Y)
         commits_h.pack(side=tk.BOTTOM, fill=tk.X)
         self.commits_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self._configure_readonly_text(self.commits_text)
+
+        self._set_text(self.meta_text, "Select a repository to view metadata.")
+        self._set_text(self.merges_text, "Select a repository to view merge history.")
+        self._set_text(self.commits_text, "Select a repository to view commit history.")
 
         # Auto-load details when selection changes
         self.repo_listbox.bind("<<ListboxSelect>>", lambda _e: self.refresh_repo_details())
@@ -274,16 +347,15 @@ class GithelperGUI:
         log_frame.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
         log_scroll = ttk.Scrollbar(log_frame, orient=tk.VERTICAL)
         log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        self.log_text = tk.Text(log_frame, height=6, wrap=tk.WORD, state=tk.DISABLED)
+        self.log_text = tk.Text(log_frame, height=6, wrap=tk.WORD)
         self.log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         log_scroll.config(command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=log_scroll.set)
+        self._configure_readonly_text(self.log_text)
 
     def _set_text(self, widget, text):
-        widget.config(state=tk.NORMAL)
         widget.delete("1.0", tk.END)
         widget.insert(tk.END, text)
-        widget.config(state=tk.DISABLED)
 
     def _classify_remote(self, url):
         u = (url or "").strip().lower()
@@ -308,13 +380,12 @@ class GithelperGUI:
     def refresh_repo_details(self):
         selection = self.repo_listbox.curselection()
         if not selection:
-            self._set_text(self.meta_text, "Select a repository to view metadata.")
-            self._set_text(self.merges_text, "Select a repository to view merge history.")
-            self._set_text(self.commits_text, "Select a repository to view commit history.")
             return
 
         repo_name = self.repo_listbox.get(selection[0]).strip().removesuffix(".git")
         self.save_config()
+        self._repo_details_gen += 1
+        gen = self._repo_details_gen
 
         def work():
             _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
@@ -357,12 +428,24 @@ class GithelperGUI:
                 "git --git-dir \"$REPO\" log --oneline --decorate -n 100 2>/dev/null || true"
             )
 
-            meta = self._run_ssh_command(meta_cmd).stdout
-            merges = self._run_ssh_command(merges_cmd).stdout
-            commits = self._run_ssh_command(commits_cmd).stdout
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                meta_f = pool.submit(self._run_ssh_command, meta_cmd)
+                merges_f = pool.submit(self._run_ssh_command, merges_cmd)
+                commits_f = pool.submit(self._run_ssh_command, commits_cmd)
+                meta = meta_f.result().stdout
+                merges = merges_f.result().stdout
+                commits = commits_f.result().stdout
             return meta, merges, commits
 
         def done(result):
+            if gen != self._repo_details_gen:
+                return
+            sel = self.repo_listbox.curselection()
+            if not sel:
+                return
+            current = self.repo_listbox.get(sel[0]).strip().removesuffix(".git")
+            if current != repo_name:
+                return
             meta, merges, commits = result
             self._set_text(self.meta_text, meta.strip() + "\n")
             self._set_text(self.merges_text, (merges.strip() + "\n") if merges.strip() else "(No merge commits found)\n")
@@ -404,7 +487,9 @@ class GithelperGUI:
 
         lscroll = ttk.Scrollbar(left, orient=tk.VERTICAL)
         lscroll.pack(side=tk.RIGHT, fill=tk.Y)
-        self.local_listbox = tk.Listbox(left, yscrollcommand=lscroll.set)
+        self.local_listbox = tk.Listbox(
+            left, yscrollcommand=lscroll.set, exportselection=False
+        )
         self.local_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         lscroll.config(command=self.local_listbox.yview)
 
@@ -420,19 +505,21 @@ class GithelperGUI:
         self.local_details_notebook.add(overview_tab, text="Overview")
         self.local_details_notebook.add(commits_tab, text="Commits")
 
-        self.local_overview_text = tk.Text(overview_tab, wrap=tk.WORD, state=tk.DISABLED, height=12)
+        self.local_overview_text = tk.Text(overview_tab, wrap=tk.WORD, height=12)
         ov_scroll = ttk.Scrollbar(overview_tab, orient=tk.VERTICAL, command=self.local_overview_text.yview)
         self.local_overview_text.configure(yscrollcommand=ov_scroll.set)
         ov_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.local_overview_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self._configure_readonly_text(self.local_overview_text)
 
-        self.local_commits_text = tk.Text(commits_tab, wrap=tk.NONE, state=tk.DISABLED, height=12)
+        self.local_commits_text = tk.Text(commits_tab, wrap=tk.NONE, height=12)
         c_v = ttk.Scrollbar(commits_tab, orient=tk.VERTICAL, command=self.local_commits_text.yview)
         c_h = ttk.Scrollbar(commits_tab, orient=tk.HORIZONTAL, command=self.local_commits_text.xview)
         self.local_commits_text.configure(yscrollcommand=c_v.set, xscrollcommand=c_h.set)
         c_v.pack(side=tk.RIGHT, fill=tk.Y)
         c_h.pack(side=tk.BOTTOM, fill=tk.X)
         self.local_commits_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self._configure_readonly_text(self.local_commits_text)
 
         self.local_listbox.bind("<<ListboxSelect>>", lambda _e: self.refresh_local_repo_details())
 
@@ -464,6 +551,8 @@ class GithelperGUI:
 
         self.repo_base = str(base_path)  # keep heatmap in sync
         self.save_config()
+        self._scan_local_gen += 1
+        gen = self._scan_local_gen
 
         def work():
             repos = []
@@ -477,6 +566,8 @@ class GithelperGUI:
             return repos
 
         def done(repos):
+            if gen != self._scan_local_gen:
+                return
             self.local_listbox.delete(0, tk.END)
             for r in repos:
                 self.local_listbox.insert(tk.END, r)
@@ -487,11 +578,11 @@ class GithelperGUI:
     def refresh_local_repo_details(self):
         repo_path = self._selected_local_repo_path()
         if not repo_path:
-            self._set_text(self.local_overview_text, "Select a repository to view details.")
-            self._set_text(self.local_commits_text, "Select a repository to view commit history.")
             return
 
         repo = Path(repo_path)
+        self._local_details_gen += 1
+        gen = self._local_details_gen
 
         def work():
             # Resolve git dir for worktrees/submodules
@@ -607,6 +698,10 @@ class GithelperGUI:
             return overview, commits
 
         def done(result):
+            if gen != self._local_details_gen:
+                return
+            if self._selected_local_repo_path() != repo_path:
+                return
             overview, commits = result
             self._set_text(self.local_overview_text, overview.strip() + "\n")
             self._set_text(self.local_commits_text, (commits.strip() + "\n") if commits.strip() else "(No commits found)\n")
@@ -781,6 +876,9 @@ end tell
         self.path_label.config(text=f"Repo path: {label}")
         self.day_details = {}  # {date_str: {repo: count}}
         self.rectangles = []   # For cleanup
+        self._heatmap_tooltip = HeatmapTooltip(self.root)
+        self.canvas.bind("<Button-1>", self._on_heatmap_click)
+        self.canvas.bind("<Leave>", lambda _e: self._hide_heatmap_tooltip())
 
     # == Core SSH Actions ==
     def _run_ssh_command(self, command_text):
@@ -819,6 +917,8 @@ end tell
 
     def list_repos(self):
         self.save_config()
+        self._list_repos_gen += 1
+        gen = self._list_repos_gen
 
         def work():
             _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
@@ -845,6 +945,8 @@ end tell
             return self._run_ssh_command(cmd).stdout
 
         def done(stdout):
+            if gen != self._list_repos_gen:
+                return
             self.repo_listbox.delete(0, tk.END)
             for repo in stdout.strip().splitlines():
                 repo = repo.strip()
@@ -1038,6 +1140,7 @@ end tell
             return
 
         # Clear previous heatmap
+        self._hide_heatmap_tooltip()
         for rect in self.rectangles:
             self.canvas.delete(rect)
         self.rectangles = []
@@ -1144,13 +1247,8 @@ end tell
                     x1, y1, x2, y2,
                     fill=color,
                     outline="",
-                    tags=date_str
+                    tags=("heatmap_cell", date_str)
                 )
-
-                # Bind click event
-                self.canvas.tag_bind(rect, "<Button-1>",
-                                    lambda e, d=date_str:
-                                    self.show_day_details(d))
 
                 self.rectangles.append(rect)
 
@@ -1223,36 +1321,36 @@ end tell
         total_height = heatmap_height + label_padding_y + 40
         self.canvas.config(scrollregion=(0, 0, total_width, total_height))
 
-    def show_day_details(self, date_str):
-        """Show popup with repos that committed on this day"""
+    def _is_date_tag(self, tag):
+        return len(tag) == 10 and tag[4] == "-" and tag[7] == "-"
+
+    def _hide_heatmap_tooltip(self):
+        self._heatmap_tooltip.hide()
+
+    def _on_heatmap_click(self, event):
+        items = self.canvas.find_overlapping(event.x, event.y, event.x, event.y)
+        for item in reversed(items):
+            for tag in self.canvas.gettags(item):
+                if self._is_date_tag(tag):
+                    self.show_day_tooltip(event, tag)
+                    return
+        self._hide_heatmap_tooltip()
+
+    def show_day_tooltip(self, event, date_str):
+        """Show floating tooltip with repos that committed on this day."""
         details = self.day_details.get(date_str, {})
         total = sum(details.values())
 
         if not details:
-            messagebox.showinfo(date_str, "No commits on this day.")
-            return
+            msg = f"Date: {date_str}\nNo commits on this day."
+        else:
+            msg = f"Date: {date_str}\nTotal: {total} commits\n\n"
+            for repo, count in sorted(
+                details.items(), key=lambda x: x[1], reverse=True
+            ):
+                msg += f"- {repo}: {count} commits\n"
 
-        # Build message: sorted by count descending
-        msg = f"Date: {date_str}\nTotal: {total} commits\n\n"
-        for repo, count in sorted(
-            details.items(), key=lambda x: x[1], reverse=True
-        ):
-            msg += f"- {repo}: {count} commits\n"
-
-        # Show in a scrollable text window
-        top = tk.Toplevel(self.root)
-        top.title(f"Commits on {date_str}")
-        top.geometry("400x300")
-
-        text = tk.Text(top, wrap=tk.WORD)
-        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        text.insert(tk.END, msg)
-        text.config(state=tk.DISABLED)
-
-        scrollbar = ttk.Scrollbar(text, orient=tk.VERTICAL,
-                                  command=text.yview)
-        text.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self._heatmap_tooltip.show(event, msg.rstrip())
 
 
 if __name__ == "__main__":
