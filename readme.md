@@ -11,7 +11,7 @@ I hope they make your work a little easier if you want to go away from big hoste
 - **CLI** (`cli/githelper.py`): manage bare repos locally or over SSH
 - **GUI** (`gui/githelper-gui.py`, Tkinter):
   - **Remote Repos**: list/clone/create/rename/fork-copy/archive/delete on an SSH host
-  - **Local Repos**: scan a “projects” folder that contains many different repos (GitHub/GitLab/private), view rich metadata, fetch/pull, open folder, launch `lazygit`
+  - **Local Repos**: scan a “projects” folder that contains many different repos (GitHub/GitLab/private), view rich metadata, fetch/pull, open folder
   - **Local Commit Heatmap**: a GitHub-style activity heatmap across your local repo collection
 
 ## Dependencies
@@ -25,12 +25,6 @@ I hope they make your work a little easier if you want to go away from big hoste
 ### GUI (Tkinter)
 
 Tkinter ships with Python on most platforms. If your OS packages it separately, install the Tk bindings for Python (package names vary by distro).
-
-### Optional
-
-- **`lazygit`**: the Local Repos tab can open `lazygit` in a terminal for the selected repo  
-  Install instructions: `https://github.com/jesseduffield/lazygit#installation`
-- **`xterm`** (Linux/*BSD): used to launch `lazygit` in a terminal window
 
 ## Configuration
 
@@ -60,7 +54,7 @@ Local Repo workflow:
 - Choose a **Base folder** containing your local repos (a single directory that contains many projects)
 - Click **Scan Repos**
 - Select a repo to view metadata + commit history
-- Use **Fetch**, **Pull**, **Open Folder**, or **lazygit**
+- Use **Fetch**, **Pull**, or **Open Folder**
 
 ### CLI
 

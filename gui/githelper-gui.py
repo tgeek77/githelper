@@ -5,8 +5,6 @@ import collections
 import threading
 import shlex
 import sys
-import shutil
-import webbrowser
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -470,7 +468,6 @@ class GithelperGUI:
         btns.pack(fill=tk.X, padx=5, pady=(0, 5))
         ttk.Button(btns, text="Scan Repos", command=self.scan_local_repos).pack(side=tk.LEFT)
         ttk.Button(btns, text="Open Folder", command=self.open_selected_local_repo).pack(side=tk.LEFT, padx=(6, 0))
-        ttk.Button(btns, text="lazygit", command=self.lazygit_selected_local_repo).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(btns, text="Fetch", command=self.fetch_selected_local_repo).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(btns, text="Pull", command=self.pull_selected_local_repo).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(btns, text="Refresh Details", command=self.refresh_local_repo_details).pack(side=tk.RIGHT)
@@ -718,62 +715,12 @@ class GithelperGUI:
             return
         subprocess.run(["xdg-open", path], check=False)
 
-    def _open_terminal_here(self, cwd, command):
-        """
-        Open a terminal window at cwd and run command.
-        macOS: Terminal.app
-        Linux/*BSD: xterm
-        """
-        cwd = str(Path(cwd).resolve())
-        cd = f"cd {shlex.quote(cwd)}"
-        cmd = f"{cd} && {command}"
-
-        if sys.platform == "darwin":
-            script = f'''
-tell application "Terminal"
-    activate
-    do script {json.dumps(cmd)}
-end tell
-'''
-            subprocess.run(["osascript", "-e", script], check=False)
-            return
-
-        if shutil.which("xterm"):
-            subprocess.run(["xterm", "-e", "sh", "-lc", cmd], check=False)
-            return
-
-        raise RuntimeError("xterm not found on PATH. Please install xterm to use this feature.")
-
     def open_selected_local_repo(self):
         repo_path = self._selected_local_repo_path()
         if not repo_path:
             messagebox.showwarning("No Selection", "Please select a local repo first.")
             return
         self._open_path_in_file_manager(repo_path)
-
-    def lazygit_selected_local_repo(self):
-        repo_path = self._selected_local_repo_path()
-        if not repo_path:
-            messagebox.showwarning("No Selection", "Please select a local repo first.")
-            return
-
-        if not shutil.which("lazygit"):
-            url = "https://github.com/jesseduffield/lazygit#installation"
-            messagebox.showinfo(
-                "lazygit not found",
-                "Sorry — lazygit is not installed or not on your PATH.\n\n"
-                f"Install instructions:\n{url}"
-            )
-            try:
-                webbrowser.open(url)
-            except Exception:
-                pass
-            return
-
-        try:
-            self._open_terminal_here(repo_path, "lazygit")
-        except Exception as e:
-            messagebox.showerror("Failed to open lazygit", str(e))
 
     def fetch_selected_local_repo(self):
         repo_path = self._selected_local_repo_path()
