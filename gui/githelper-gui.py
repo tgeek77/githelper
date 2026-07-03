@@ -1159,7 +1159,7 @@ end tell
             repo_name = repo.name
             cmd = [
                 "git", "-C", str(repo),
-                "log", "--date=short", "--format=%ad"
+                "log", "--all", "--date=short", "--format=%ad",
             ]
             try:
                 result = subprocess.run(
