@@ -61,6 +61,13 @@ build_pyinstaller() {
     python3 -m PyInstaller "$spec" --clean --noconfirm
 }
 
+smoke_test_pyinstaller_binary() {
+    local binary="$1"
+    shift
+    echo "==> Smoke test PyInstaller binary: $binary"
+    "$DIST/$binary" "$@"
+}
+
 assemble_appdir() {
     local name="$1"
     local binary="$2"
@@ -139,6 +146,8 @@ smoke_test_gui() {
 
 build_cli() {
     build_pyinstaller "$ROOT/packaging/pyinstaller/githelper-cli.spec"
+    smoke_test_pyinstaller_binary githelper --help
+    smoke_test_pyinstaller_binary githelper config path
     assemble_appdir \
         "githelper-cli" \
         "githelper" \

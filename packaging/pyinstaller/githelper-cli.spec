@@ -9,6 +9,7 @@ root = Path(SPECPATH).resolve().parent.parent
 hidden = [
     "githelper",
     "githelper.bare",
+    "githelper.cli_app",
     "githelper.config",
     "githelper.errors",
     "githelper.heatmap",
@@ -18,7 +19,7 @@ hidden = [
 ]
 
 a = Analysis(
-    [str(root / "cli" / "githelper.py")],
+    [str(root / "packaging" / "entrypoints" / "run_cli.py")],
     pathex=[str(root)],
     binaries=[],
     datas=[],
