@@ -145,6 +145,34 @@ The previous flag-based interface still works but prints a deprecation notice. P
 
 Clone shows progress directly from git (no captured output). Very large repos over slow links may still take a while.
 
+## Linux AppImage releases
+
+Pre-built **x86_64** AppImages are published on [GitHub Releases](https://github.com/tgeek77/githelper/releases):
+
+- `githelper-cli-VERSION-x86_64.AppImage` — command-line tool
+- `githelper-gui-VERSION-x86_64.AppImage` — desktop GUI
+
+```bash
+chmod +x githelper-cli-2.0.0-x86_64.AppImage
+./githelper-cli-2.0.0-x86_64.AppImage remote list
+
+chmod +x githelper-gui-2.0.0-x86_64.AppImage
+./githelper-gui-2.0.0-x86_64.AppImage
+```
+
+**Requirements:** `git` and `openssh-client` must still be installed on your system and available on your `PATH`. The AppImages bundle Python and githelper itself, not git or ssh.
+
+### Build AppImages locally
+
+```bash
+sudo apt-get install python3-tk wget xvfb   # Debian/Ubuntu
+chmod +x packaging/appimage/build.sh
+packaging/appimage/build.sh all             # or: cli | gui
+ls dist/*.AppImage
+```
+
+Releases are built automatically when a version tag is pushed (for example `v2.0.0`). You can also trigger a manual build from the **Actions** tab in GitHub.
+
 ## Tips
 
 - **Rename**: renames the bare repo on the server. Your existing local clone will still point at the old URL until you update `origin` (or re-clone).
