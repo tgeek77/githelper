@@ -1,11 +1,7 @@
 import subprocess
 import os
-import json
-import collections
 import threading
-import shlex
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 import tkinter as tk
@@ -13,8 +9,16 @@ from tkinter import (
     ttk, messagebox, filedialog, simpledialog
 )
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-CONFIG_PATH = Path.home() / ".githelperrc"
+from githelper import config as gh_config
+from githelper import heatmap as gh_heatmap
+from githelper import info as gh_info
+from githelper import remote as gh_remote
+from githelper.errors import GithelperError
+from githelper.ssh import validate_ssh_inputs
+
+CONFIG_PATH = gh_config.CONFIG_PATH
 
 
 class HeatmapTooltip:
@@ -96,13 +100,7 @@ class GithelperGUI:
 
     # == Config Management ==
     def load_config(self):
-        if CONFIG_PATH.exists():
-            try:
-                with open(CONFIG_PATH, "r", encoding="utf-8") as cfg:
-                    return json.load(cfg)
-            except Exception:
-                pass
-        return {}
+        return gh_config.load_config()
 
     def save_config(self):
         self.config["server"] = self.server_var.get().strip()
@@ -111,9 +109,8 @@ class GithelperGUI:
         self.config["dir"] = self.dir_var.get().strip()
         self.config["local_repo_base"] = self.repo_base or ""
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(self.config, f, indent=2)
-        except Exception as e:
+            gh_config.save_config(self.config)
+        except OSError as e:
             messagebox.showwarning("Warning", f"Failed to save config: {e}")
 
     # == UI Helpers ==
@@ -144,16 +141,12 @@ class GithelperGUI:
         return None
 
     def _validate_ssh_inputs(self):
-        server = self.server_var.get().strip()
-        user = self.user_var.get().strip()
-        port = self.port_var.get().strip()
-        ssh_dir = self.dir_var.get().strip()
-
-        if not server or not user or not ssh_dir:
-            raise ValueError("Server, User, and Remote Directory are required.")
-        if not port.isdigit():
-            raise ValueError("Port must be a number.")
-        return server, user, port, ssh_dir
+        return validate_ssh_inputs(
+            self.server_var.get(),
+            self.user_var.get(),
+            self.port_var.get(),
+            self.dir_var.get(),
+        )
 
     def _run_in_background(self, label, work_fn, done_fn=None):
         self._active_tasks += 1
@@ -178,6 +171,8 @@ class GithelperGUI:
                         stderr = (error.stderr or "").strip()
                         if stderr:
                             err_text = f"{err_text}\n\n--- stderr ---\n{stderr}"
+                    elif isinstance(error, GithelperError) and error.stderr:
+                        err_text = f"{err_text}\n\n--- stderr ---\n{error.stderr.strip()}"
                     self._set_status(f"{label} failed")
                     self._append_log(f"[{label}] ERROR: {err_text}")
                     messagebox.showerror("Error", f"{label} failed:\n{err_text}")
@@ -386,54 +381,12 @@ class GithelperGUI:
         gen = self._repo_details_gen
 
         def work():
-            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
-            cd_cmd = self._remote_cd_cmd(ssh_dir)
-            repo_git = shlex.quote(self._repo_git_dirname(repo_name))
-
-            meta_cmd = (
-                "set -e; "
-                f"{cd_cmd}; "
-                f"REPO={repo_git}; "
-                "printf 'Repo: %s\\n' \"$REPO\"; "
-                "printf 'HEAD: '; "
-                "git --git-dir \"$REPO\" symbolic-ref -q --short HEAD || echo '(detached/unknown)'; "
-                "printf 'Last commit: '; "
-                "git --git-dir \"$REPO\" log -1 --format='%h %ci %an %s' 2>/dev/null || echo '(no commits)'; "
-                "printf 'Branches: '; "
-                "git --git-dir \"$REPO\" for-each-ref refs/heads --format='%(refname:short)' | wc -l | tr -d ' '; "
-                "printf '\\nTags: '; "
-                "git --git-dir \"$REPO\" tag -l | wc -l | tr -d ' '; "
-                "printf '\\nObject size: '; "
-                "git --git-dir \"$REPO\" count-objects -vH | sed -n 's/^size-pack: //p'; "
-                "printf '\\nLoose objects: '; "
-                "git --git-dir \"$REPO\" count-objects -vH | sed -n 's/^count: //p'; "
-                "printf '\\nPacked objects: '; "
-                "git --git-dir \"$REPO\" count-objects -vH | sed -n 's/^in-pack: //p'; "
-                "printf '\\n'"
+            server, user, port, ssh_dir = self._validate_ssh_inputs()
+            return gh_info.fetch_repo_info(
+                server, user, port, ssh_dir, repo_name,
+                include_merges=True,
+                commits_limit=100,
             )
-
-            merges_cmd = (
-                "set -e; "
-                f"{cd_cmd}; "
-                f"REPO={repo_git}; "
-                "git --git-dir \"$REPO\" log --merges --oneline --decorate -n 50 2>/dev/null || true"
-            )
-
-            commits_cmd = (
-                "set -e; "
-                f"{cd_cmd}; "
-                f"REPO={repo_git}; "
-                "git --git-dir \"$REPO\" log --oneline --decorate -n 100 2>/dev/null || true"
-            )
-
-            with ThreadPoolExecutor(max_workers=3) as pool:
-                meta_f = pool.submit(self._run_ssh_command, meta_cmd)
-                merges_f = pool.submit(self._run_ssh_command, merges_cmd)
-                commits_f = pool.submit(self._run_ssh_command, commits_cmd)
-                meta = meta_f.result().stdout
-                merges = merges_f.result().stdout
-                commits = commits_f.result().stdout
-            return meta, merges, commits
 
         def done(result):
             if gen != self._repo_details_gen:
@@ -444,7 +397,9 @@ class GithelperGUI:
             current = self.repo_listbox.get(sel[0]).strip().removesuffix(".git")
             if current != repo_name:
                 return
-            meta, merges, commits = result
+            meta = result["metadata"]
+            merges = result.get("merges") or ""
+            commits = result.get("commits") or ""
             self._set_text(self.meta_text, meta.strip() + "\n")
             self._set_text(self.merges_text, (merges.strip() + "\n") if merges.strip() else "(No merge commits found)\n")
             self._set_text(self.commits_text, (commits.strip() + "\n") if commits.strip() else "(No commits found)\n")
@@ -828,75 +783,20 @@ class GithelperGUI:
         self.canvas.bind("<Leave>", lambda _e: self._hide_heatmap_tooltip())
 
     # == Core SSH Actions ==
-    def _run_ssh_command(self, command_text):
-        """Run a command on remote host through SSH"""
-        server, user, port, _ssh_dir = self._validate_ssh_inputs()
-        cmd = ["ssh", "-p", port, f"{user}@{server}", command_text]
-        return subprocess.run(cmd, check=True, capture_output=True, text=True)
-
-    def _remote_cd_cmd(self, ssh_dir):
-        ssh_dir = (ssh_dir or "").strip()
-        if ssh_dir == "~":
-            return 'cd -- "$HOME"'
-        if ssh_dir.startswith("~/"):
-            rest = ssh_dir[2:].rstrip("/")
-            return 'cd -- "$HOME"/' + shlex.quote(rest)
-        return f"cd -- {shlex.quote(ssh_dir.rstrip('/'))}"
-
-    def _repo_git_dirname(self, repo_name_no_suffix):
-        repo = (repo_name_no_suffix or "").strip().removesuffix(".git")
-        return repo + ".git"
-
-    def _remote_path_for_git_url(self, ssh_dir):
-        """
-        Build an ssh:// URL path segment that works with home-relative dirs.
-        Git's ssh URL supports /~/ to mean "home directory".
-        """
-        ssh_dir = (ssh_dir or "").strip().rstrip("/")
-        if ssh_dir == "~":
-            return "/~"
-        if ssh_dir.startswith("~/"):
-            return "/~/" + ssh_dir[2:]
-        if ssh_dir.startswith("/"):
-            return ssh_dir
-        # Treat other relative paths as relative to home
-        return "/~/" + ssh_dir
-
     def list_repos(self):
         self.save_config()
         self._list_repos_gen += 1
         gen = self._list_repos_gen
 
         def work():
-            _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
-            ssh_dir = ssh_dir.strip()
-            # Build a safe 'cd' that still expands "~" on the remote host.
-            # Quoting "~" (e.g. 'cd "~/repos"') prevents expansion, so we
-            # translate it to $HOME explicitly.
-            if ssh_dir == "~":
-                cd_cmd = 'cd -- "$HOME"'
-            elif ssh_dir.startswith("~/"):
-                rest = ssh_dir[2:].rstrip("/")
-                # $HOME + "/" + rest, where rest is safely single-quoted.
-                cd_cmd = 'cd -- "$HOME"/' + shlex.quote(rest)
-            else:
-                cd_cmd = f"cd -- {shlex.quote(ssh_dir.rstrip('/'))}"
-            cmd = (
-                "set -e; "
-                f"{cd_cmd}; "
-                "for d in *.git; do "
-                "  [ -d \"$d\" ] || continue; "
-                "  printf '%s\n' \"${d%.git}\"; "
-                "done"
-            )
-            return self._run_ssh_command(cmd).stdout
+            server, user, port, ssh_dir = self._validate_ssh_inputs()
+            return gh_remote.list_repos(server, user, port, ssh_dir)
 
-        def done(stdout):
+        def done(repos):
             if gen != self._list_repos_gen:
                 return
             self.repo_listbox.delete(0, tk.END)
-            for repo in stdout.strip().splitlines():
-                repo = repo.strip()
+            for repo in repos:
                 if repo:
                     self.repo_listbox.insert(tk.END, repo)
 
@@ -920,10 +820,10 @@ class GithelperGUI:
         def work():
             server, user, port, ssh_dir = self._validate_ssh_inputs()
             dest = str(Path(clone_path) / repo_name)
-            url_path = self._remote_path_for_git_url(ssh_dir)
-            url = f"ssh://{user}@{server}:{port}{url_path}/{repo_name}.git"
-            cmd = ["git", "clone", url, dest]
-            return subprocess.run(cmd, check=True, capture_output=True, text=True)
+            gh_remote.clone_repo(
+                server, user, port, ssh_dir, repo_name, dest=dest,
+            )
+            return dest
 
         def done(_result):
             messagebox.showinfo("Success", f"Cloned {repo_name} to {clone_path}")
@@ -942,10 +842,9 @@ class GithelperGUI:
 
         def work():
             _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
-            cd_cmd = self._remote_cd_cmd(ssh_dir)
-            repo_git = shlex.quote(self._repo_git_dirname(repo_name))
-            cmd = f"set -e; {cd_cmd}; git init --bare {repo_git}"
-            return self._run_ssh_command(cmd)
+            return gh_remote.create_repo(
+                _server, _user, _port, ssh_dir, repo_name,
+            )
 
         def done(_):
             messagebox.showinfo("Success", f"Created {repo_name}.git")
@@ -973,10 +872,9 @@ class GithelperGUI:
 
         def work():
             _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
-            cd_cmd = self._remote_cd_cmd(ssh_dir)
-            repo_git = shlex.quote(self._repo_git_dirname(repo_name))
-            cmd = f"set -e; {cd_cmd}; rm -rf {repo_git}"
-            return self._run_ssh_command(cmd)
+            return gh_remote.delete_repo(
+                _server, _user, _port, ssh_dir, repo_name,
+            )
 
         def done(_):
             messagebox.showinfo("Deleted", f"Removed {repo_name}.git")
@@ -1002,11 +900,9 @@ class GithelperGUI:
 
         def work():
             _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
-            cd_cmd = self._remote_cd_cmd(ssh_dir)
-            old_git = shlex.quote(self._repo_git_dirname(old_name))
-            new_git = shlex.quote(self._repo_git_dirname(new_name))
-            cmd = f"set -e; {cd_cmd}; mv -v {old_git} {new_git}"
-            return self._run_ssh_command(cmd)
+            return gh_remote.rename_repo(
+                _server, _user, _port, ssh_dir, old_name, new_name,
+            )
 
         def done(_):
             messagebox.showinfo("Success", f"Renamed {old_name} -> {new_name}")
@@ -1032,11 +928,9 @@ class GithelperGUI:
 
         def work():
             _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
-            cd_cmd = self._remote_cd_cmd(ssh_dir)
-            old_git = shlex.quote(self._repo_git_dirname(old_name))
-            new_git = shlex.quote(self._repo_git_dirname(new_name))
-            cmd = f"set -e; {cd_cmd}; cp -R {old_git} {new_git}"
-            return self._run_ssh_command(cmd)
+            return gh_remote.fork_repo(
+                _server, _user, _port, ssh_dir, old_name, new_name,
+            )
 
         def done(_):
             messagebox.showinfo("Success", f"Copied {old_name} -> {new_name}")
@@ -1055,11 +949,9 @@ class GithelperGUI:
 
         def work():
             _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
-            cd_cmd = self._remote_cd_cmd(ssh_dir)
-            repo_git = shlex.quote(self._repo_git_dirname(repo_name))
-            out_name = shlex.quote(repo_name + ".tgz")
-            cmd = f"set -e; {cd_cmd}; tar -czf {out_name} {repo_git}"
-            return self._run_ssh_command(cmd)
+            return gh_remote.archive_repo(
+                _server, _user, _port, ssh_dir, repo_name,
+            )
 
         def done(_):
             _server, _user, _port, ssh_dir = self._validate_ssh_inputs()
@@ -1094,43 +986,12 @@ class GithelperGUI:
         self.day_details.clear()
 
         base = Path(os.path.expanduser(self.repo_base))
-        repos = [p for p in base.iterdir() if (p / ".git").exists()]
-
-        if not repos:
-            messagebox.showwarning("No Repos Found",
-                                   "No repositories found in this directory.")
+        try:
+            commit_counter, self.day_details = gh_heatmap.aggregate_commits(base)
+        except GithelperError as exc:
+            messagebox.showwarning("Heatmap", str(exc))
             return
 
-        commit_counter = collections.Counter()
-        for repo in repos:
-            repo_name = repo.name
-            cmd = [
-                "git", "-C", str(repo),
-                "log", "--all", "--date=short", "--format=%ad",
-            ]
-            try:
-                result = subprocess.run(
-                    cmd, capture_output=True, text=True, check=True
-                )
-                for line in result.stdout.splitlines():
-                    date_str = line.strip()
-                    if date_str:
-                        if date_str not in self.day_details:
-                            self.day_details[date_str] = \
-                                collections.Counter()
-                        self.day_details[date_str][repo_name] += 1
-                        commit_counter[date_str] += 1
-            except subprocess.CalledProcessError:
-                continue
-            except Exception as e:
-                print(f"Error reading {repo}: {e}")
-
-        if not commit_counter:
-            messagebox.showwarning("No Data",
-                                   "No commits found in the repositories.")
-            return
-
-        # Create heatmap visualization
         self.draw_heatmap(commit_counter)
 
     def draw_heatmap(self, commit_counter):

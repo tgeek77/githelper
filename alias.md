@@ -1,15 +1,24 @@
-```
-alias ghlist='githelper.py --server example.com --user git --dir git --port 2222 -l'
-alias ghclone='githelper.py --server example.com --user git --dir git --port 2222 -c'
-alias ghnew='githelper.py --server example.com --user git --dir git --port 2222 -n'
-alias ghdelete='githelper.py --server example.com --user git --dir git --port 2222 --remove'
-alias gharch='githelper.py --server example.com --user git --dir git --port 2222 -a'
-alias ghfork='githelper.py --server example.com --user git --dir git --port 2222 -f'
-alias ghrename='githelper.py --server example.com --user git --dir git --port 2222 -rn'
-```
-```
-alias lghclone='githelper_local.py --loc /mnt/disk -c'
-alias lghlist='githelper_local.py --loc /mnt/disk -l'
-alias lghnew='githelper_local.py --loc /mnt/disk -n'
-alias lgharch='githelper_local.py --loc /mnt/disk -a'
-```
+# Example shell aliases for githelper subcommands.
+# Adjust paths, server, user, dir, and port for your setup.
+
+GH="python3 /path/to/githelper/cli/githelper.py"
+REMOTE="$GH --server example.com --user git --dir git --port 2222"
+
+# Remote bare-repo shortcuts
+alias ghlist='$REMOTE remote list'
+alias ghclone='$REMOTE remote clone'
+alias ghnew='$REMOTE remote create'
+alias ghdelete='$REMOTE remote delete'
+alias gharch='$REMOTE remote archive'
+alias ghfork='$REMOTE remote fork'
+alias ghrename='$REMOTE remote rename'
+alias ghinfo='$REMOTE remote info'
+
+# Local bare-repo shortcuts
+alias lghlist='$GH --loc /mnt/disk bare list'
+alias lghclone='$GH --loc /mnt/disk bare clone'
+alias lghnew='$GH --loc /mnt/disk bare create'
+alias lgharch='$GH --loc /mnt/disk bare archive'
+
+# Heatmap (uses local_repo_base from ~/.githelperrc when --base omitted)
+alias ghmap='$GH heatmap'
