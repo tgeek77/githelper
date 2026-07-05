@@ -4,3 +4,9 @@ __pycache__/
 *.pyo
 .Python
 
+# Packaging / PyInstaller
+/build/
+/dist/
+*.AppImage
+packaging/appimage/*.AppDir/
+.cache/

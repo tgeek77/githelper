@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Githelper CLI
+Comment=Manage Git bare repositories locally or over SSH
+Exec=githelper
+Icon=githelper
+Terminal=true
+Categories=Development;VersionControl;
+StartupNotify=false
