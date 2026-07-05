@@ -5,5 +5,5 @@ Comment=Easy self-hosted Git repository manager
 Exec=githelper-gui
 Icon=githelper
 Terminal=false
-Categories=Development;VersionControl;
+Categories=Development;
 StartupNotify=true

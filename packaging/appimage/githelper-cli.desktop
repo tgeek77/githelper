@@ -5,5 +5,5 @@ Comment=Manage Git bare repositories locally or over SSH
 Exec=githelper
 Icon=githelper
 Terminal=true
-Categories=Development;VersionControl;
+Categories=Development;
 StartupNotify=false
