@@ -107,18 +107,25 @@ make_appimage() {
     chmod +x "$output"
 }
 
+run_appimage() {
+    # CI runners often lack FUSE; extract-and-run avoids libfuse.so.2.
+    local image="$1"
+    shift
+    "$image" --appimage-extract-and-run "$@"
+}
+
 smoke_test_cli() {
     local image="$DIST/githelper-cli-${VERSION}-${ARCH}.AppImage"
     echo "==> Smoke test CLI"
-    "$image" --help >/dev/null
-    "$image" config path >/dev/null
+    run_appimage "$image" --help >/dev/null
+    run_appimage "$image" config path >/dev/null
 }
 
 smoke_test_gui() {
     local image="$DIST/githelper-gui-${VERSION}-${ARCH}.AppImage"
     echo "==> Smoke test GUI (headless import check)"
     if command -v xvfb-run >/dev/null 2>&1; then
-        xvfb-run -a "$image" &
+        xvfb-run -a "$image" --appimage-extract-and-run &
         local pid=$!
         sleep 3
         if kill -0 "$pid" 2>/dev/null; then
