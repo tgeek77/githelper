@@ -2,7 +2,7 @@
 # Quick packaging checks without building AppImages (no FUSE/appimagetool needed).
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export PYTHONPATH="$ROOT"
 
@@ -11,13 +11,10 @@ python3 -c "from githelper.cli_app import main; print('cli_app ok')"
 python3 cli/githelper.py --help >/dev/null
 python3 cli/githelper.py config path >/dev/null
 
-if ! python3 -m pip --version >/dev/null 2>&1; then
-    echo "pip not available; skipping PyInstaller checks"
-    exit 0
-fi
+# shellcheck disable=SC1091
+source "$ROOT/packaging/setup-build-venv.sh"
 
-python3 -m pip install -q -r "$ROOT/packaging/requirements-build.txt"
-python3 -m PyInstaller "$ROOT/packaging/pyinstaller/githelper-cli.spec" --clean --noconfirm
+python -m PyInstaller "$ROOT/packaging/pyinstaller/githelper-cli.spec" --clean --noconfirm
 
 echo "==> PyInstaller CLI binary"
 "$ROOT/dist/githelper" --help >/dev/null

@@ -21,14 +21,9 @@ require_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
 }
 
-ensure_pip() {
-    if python3 -m pip --version >/dev/null 2>&1; then
-        return
-    fi
-    if python3 -m ensurepip --upgrade >/dev/null 2>&1; then
-        return
-    fi
-    die "pip is required; install python3-pip or run: python3 -m ensurepip --upgrade"
+ensure_build_venv() {
+    # shellcheck disable=SC1091
+    source "$ROOT/packaging/setup-build-venv.sh"
 }
 
 read_version() {
@@ -58,7 +53,7 @@ install_appimagetool() {
 build_pyinstaller() {
     local spec="$1"
     echo "==> PyInstaller: $(basename "$spec")"
-    python3 -m PyInstaller "$spec" --clean --noconfirm
+    python -m PyInstaller "$spec" --clean --noconfirm
 }
 
 smoke_test_pyinstaller_binary() {
@@ -72,17 +67,15 @@ assemble_appdir() {
     local name="$1"
     local binary="$2"
     local desktop_src="$3"
-    local icon_id="$4"
     local appdir="$DIST/${name}.AppDir"
-    local icon_png="$APPIMAGE_DIR/icons/${icon_id}.png"
+    local icon_id="mintinstall-python-symbolic"
+    local icon_svg="$APPIMAGE_DIR/${icon_id}.svg"
 
     rm -rf "$appdir"
     mkdir -p \
         "$appdir/usr/bin" \
         "$appdir/usr/share/applications" \
-        "$appdir/usr/share/icons/hicolor/256x256/apps"
-
-    python3 "$APPIMAGE_DIR/generate-icons.py" "$icon_id" "$APPIMAGE_DIR/icons"
+        "$appdir/usr/share/icons/hicolor/scalable/apps"
 
     cp "$DIST/$binary" "$appdir/usr/bin/$binary"
     chmod +x "$appdir/usr/bin/$binary"
@@ -90,10 +83,10 @@ assemble_appdir() {
     cp "$desktop_src" "$appdir/usr/share/applications/"
     cp "$desktop_src" "$appdir/"
 
-    # AppImage spec: icon in AppDir root, hicolor theme path, and .DirIcon PNG.
-    cp "$icon_png" "$appdir/${icon_id}.png"
-    cp "$icon_png" "$appdir/.DirIcon"
-    cp "$icon_png" "$appdir/usr/share/icons/hicolor/256x256/apps/${icon_id}.png"
+    cp "$icon_svg" "$appdir/${icon_id}.svg"
+    cp "$icon_svg" "$appdir/usr/share/icons/hicolor/scalable/apps/${icon_id}.svg"
+    # AppImage spec: .DirIcon SHOULD be a 256x256 PNG; render from the SVG.
+    rsvg-convert -w 256 -h 256 "$icon_svg" -o "$appdir/.DirIcon"
 
     cat > "$appdir/AppRun" <<EOF
 #!/bin/bash
@@ -151,8 +144,7 @@ build_cli() {
     assemble_appdir \
         "githelper-cli" \
         "githelper" \
-        "$APPIMAGE_DIR/githelper.desktop" \
-        "githelper"
+        "$APPIMAGE_DIR/githelper.desktop"
     make_appimage "githelper-cli"
     smoke_test_cli
 }
@@ -162,8 +154,7 @@ build_gui() {
     assemble_appdir \
         "githelper-gui" \
         "githelper-gui" \
-        "$APPIMAGE_DIR/githelper-gui.desktop" \
-        "githelper-gui"
+        "$APPIMAGE_DIR/githelper-gui.desktop"
     make_appimage "githelper-gui"
     smoke_test_gui
 }
@@ -171,12 +162,10 @@ build_gui() {
 main() {
     require_cmd python3
     require_cmd wget
+    require_cmd rsvg-convert
     read_version
-    ensure_pip
+    ensure_build_venv
     install_appimagetool
-
-    python3 -m pip install --upgrade pip
-    python3 -m pip install -r "$ROOT/packaging/requirements-build.txt"
 
     mkdir -p "$DIST"
     export PYTHONPATH="$ROOT"

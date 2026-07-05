@@ -29,7 +29,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk wget xvfb
+          sudo apt-get install -y python3-tk wget xvfb librsvg2-bin
 
       - name: Resolve version
         id: version
