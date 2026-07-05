@@ -65,19 +65,33 @@ assemble_appdir() {
     local name="$1"
     local binary="$2"
     local desktop_src="$3"
+    local icon_id="$4"
     local appdir="$DIST/${name}.AppDir"
+    local icon_png="$APPIMAGE_DIR/icons/${icon_id}.png"
 
     rm -rf "$appdir"
-    mkdir -p "$appdir/usr/bin" "$appdir/usr/share/applications"
+    mkdir -p \
+        "$appdir/usr/bin" \
+        "$appdir/usr/share/applications" \
+        "$appdir/usr/share/icons/hicolor/256x256/apps"
+
+    python3 "$APPIMAGE_DIR/generate-icons.py" "$icon_id" "$APPIMAGE_DIR/icons"
 
     cp "$DIST/$binary" "$appdir/usr/bin/$binary"
     chmod +x "$appdir/usr/bin/$binary"
+
     cp "$desktop_src" "$appdir/usr/share/applications/"
     cp "$desktop_src" "$appdir/"
+
+    # AppImage spec: icon in AppDir root, hicolor theme path, and .DirIcon PNG.
+    cp "$icon_png" "$appdir/${icon_id}.png"
+    cp "$icon_png" "$appdir/.DirIcon"
+    cp "$icon_png" "$appdir/usr/share/icons/hicolor/256x256/apps/${icon_id}.png"
 
     cat > "$appdir/AppRun" <<EOF
 #!/bin/bash
 HERE="\$(dirname "\$(readlink -f "\${0}")")"
+export PATH="\${HERE}/usr/bin:\${PATH}"
 exec "\${HERE}/usr/bin/$binary" "\$@"
 EOF
     chmod +x "$appdir/AppRun"
@@ -121,7 +135,8 @@ build_cli() {
     assemble_appdir \
         "githelper-cli" \
         "githelper" \
-        "$APPIMAGE_DIR/githelper-cli.desktop"
+        "$APPIMAGE_DIR/githelper.desktop" \
+        "githelper"
     make_appimage "githelper-cli"
     smoke_test_cli
 }
@@ -131,7 +146,8 @@ build_gui() {
     assemble_appdir \
         "githelper-gui" \
         "githelper-gui" \
-        "$APPIMAGE_DIR/githelper-gui.desktop"
+        "$APPIMAGE_DIR/githelper-gui.desktop" \
+        "githelper-gui"
     make_appimage "githelper-gui"
     smoke_test_gui
 }
