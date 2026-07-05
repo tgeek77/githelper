@@ -9,4 +9,5 @@ __pycache__/
 /dist/
 *.AppImage
 packaging/appimage/*.AppDir/
+packaging/.venv/
 .cache/

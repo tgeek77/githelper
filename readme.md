@@ -165,7 +165,7 @@ chmod +x githelper-gui-2.0.0-x86_64.AppImage
 ### Build AppImages locally
 
 ```bash
-sudo apt-get install python3-tk wget xvfb   # Debian/Ubuntu
+sudo apt-get install python3-pip python3-venv python3-tk wget xvfb librsvg2-bin   # Debian/Ubuntu
 chmod +x packaging/appimage/build.sh
 packaging/appimage/build.sh all             # or: cli | gui
 ls dist/*.AppImage

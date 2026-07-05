@@ -29,7 +29,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk wget xvfb
+          sudo apt-get install -y python3-tk wget xvfb librsvg2-bin
 
       - name: Resolve version
         id: version
@@ -43,6 +43,14 @@ jobs:
           else
             python3 -c 'from githelper import __version__ as v; print(f"value={v}")' >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Verify CLI imports
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python3 -c "from githelper.cli_app import main"
+          python3 cli/githelper.py --help
+          python3 cli/githelper.py config path
 
       - name: Build AppImages
         env:

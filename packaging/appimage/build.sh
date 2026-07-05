@@ -21,14 +21,9 @@ require_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
 }
 
-ensure_pip() {
-    if python3 -m pip --version >/dev/null 2>&1; then
-        return
-    fi
-    if python3 -m ensurepip --upgrade >/dev/null 2>&1; then
-        return
-    fi
-    die "pip is required; install python3-pip or run: python3 -m ensurepip --upgrade"
+ensure_build_venv() {
+    # shellcheck disable=SC1091
+    source "$ROOT/packaging/setup-build-venv.sh"
 }
 
 read_version() {
@@ -58,7 +53,14 @@ install_appimagetool() {
 build_pyinstaller() {
     local spec="$1"
     echo "==> PyInstaller: $(basename "$spec")"
-    python3 -m PyInstaller "$spec" --clean --noconfirm
+    python -m PyInstaller "$spec" --clean --noconfirm
+}
+
+smoke_test_pyinstaller_binary() {
+    local binary="$1"
+    shift
+    echo "==> Smoke test PyInstaller binary: $binary"
+    "$DIST/$binary" "$@"
 }
 
 assemble_appdir() {
@@ -66,18 +68,30 @@ assemble_appdir() {
     local binary="$2"
     local desktop_src="$3"
     local appdir="$DIST/${name}.AppDir"
+    local icon_id="mintinstall-python-symbolic"
+    local icon_svg="$APPIMAGE_DIR/${icon_id}.svg"
 
     rm -rf "$appdir"
-    mkdir -p "$appdir/usr/bin" "$appdir/usr/share/applications"
+    mkdir -p \
+        "$appdir/usr/bin" \
+        "$appdir/usr/share/applications" \
+        "$appdir/usr/share/icons/hicolor/scalable/apps"
 
     cp "$DIST/$binary" "$appdir/usr/bin/$binary"
     chmod +x "$appdir/usr/bin/$binary"
+
     cp "$desktop_src" "$appdir/usr/share/applications/"
     cp "$desktop_src" "$appdir/"
+
+    cp "$icon_svg" "$appdir/${icon_id}.svg"
+    cp "$icon_svg" "$appdir/usr/share/icons/hicolor/scalable/apps/${icon_id}.svg"
+    # AppImage spec: .DirIcon SHOULD be a 256x256 PNG; render from the SVG.
+    rsvg-convert -w 256 -h 256 "$icon_svg" -o "$appdir/.DirIcon"
 
     cat > "$appdir/AppRun" <<EOF
 #!/bin/bash
 HERE="\$(dirname "\$(readlink -f "\${0}")")"
+export PATH="\${HERE}/usr/bin:\${PATH}"
 exec "\${HERE}/usr/bin/$binary" "\$@"
 EOF
     chmod +x "$appdir/AppRun"
@@ -93,18 +107,25 @@ make_appimage() {
     chmod +x "$output"
 }
 
+run_appimage() {
+    # CI runners often lack FUSE; extract-and-run avoids libfuse.so.2.
+    local image="$1"
+    shift
+    "$image" --appimage-extract-and-run "$@"
+}
+
 smoke_test_cli() {
     local image="$DIST/githelper-cli-${VERSION}-${ARCH}.AppImage"
     echo "==> Smoke test CLI"
-    "$image" --help >/dev/null
-    "$image" config path >/dev/null
+    run_appimage "$image" --help >/dev/null
+    run_appimage "$image" config path >/dev/null
 }
 
 smoke_test_gui() {
     local image="$DIST/githelper-gui-${VERSION}-${ARCH}.AppImage"
     echo "==> Smoke test GUI (headless import check)"
     if command -v xvfb-run >/dev/null 2>&1; then
-        xvfb-run -a "$image" &
+        xvfb-run -a "$image" --appimage-extract-and-run &
         local pid=$!
         sleep 3
         if kill -0 "$pid" 2>/dev/null; then
@@ -118,10 +139,12 @@ smoke_test_gui() {
 
 build_cli() {
     build_pyinstaller "$ROOT/packaging/pyinstaller/githelper-cli.spec"
+    smoke_test_pyinstaller_binary githelper --help
+    smoke_test_pyinstaller_binary githelper config path
     assemble_appdir \
         "githelper-cli" \
         "githelper" \
-        "$APPIMAGE_DIR/githelper-cli.desktop"
+        "$APPIMAGE_DIR/githelper.desktop"
     make_appimage "githelper-cli"
     smoke_test_cli
 }
@@ -139,12 +162,10 @@ build_gui() {
 main() {
     require_cmd python3
     require_cmd wget
+    require_cmd rsvg-convert
     read_version
-    ensure_pip
+    ensure_build_venv
     install_appimagetool
-
-    python3 -m pip install --upgrade pip
-    python3 -m pip install -r "$ROOT/packaging/requirements-build.txt"
 
     mkdir -p "$DIST"
     export PYTHONPATH="$ROOT"
