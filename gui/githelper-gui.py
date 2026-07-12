@@ -38,6 +38,7 @@ class HeatmapTooltip:
             text=text,
             justify=tk.LEFT,
             background="#ffffe0",
+            foreground="#000000",
             relief=tk.SOLID,
             borderwidth=1,
             padx=8,
