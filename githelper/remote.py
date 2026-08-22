@@ -61,7 +61,7 @@ def create_repo(server, user, port, ssh_dir, repo_name, verbose=False):
     repo_name = repo_name.strip().removesuffix(".git")
     cd_cmd = remote_cd_cmd(ssh_dir)
     repo_git = shlex.quote(repo_git_dirname(repo_name))
-    cmd = f"set -e; {cd_cmd}; git init --bare {repo_git}"
+    cmd = f"set -e; {cd_cmd}; git init --bare --initial-branch=main {repo_git}"
     return run_ssh(server, user, port, cmd, verbose=verbose)
 
 

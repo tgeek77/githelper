@@ -47,7 +47,7 @@ def create_repo(location, repo_name, verbose=False):
     """Create a new local bare repo."""
     repo_name = repo_name.strip().removesuffix(".git")
     path = _repo_path(location, repo_name)
-    cmd = ["git", "init", "--bare", str(path)]
+    cmd = ["git", "init", "--bare", "--initial-branch=main", str(path)]
     return run_local(cmd, verbose=verbose)
 
 
