@@ -153,11 +153,11 @@ Pre-built **x86_64** AppImages are published on [GitHub Releases](https://github
 - `githelper-gui-VERSION-x86_64.AppImage` — desktop GUI
 
 ```bash
-chmod +x githelper-cli-2.0.0-x86_64.AppImage
-./githelper-cli-2.0.0-x86_64.AppImage remote list
+chmod +x githelper-cli-2.0.2-x86_64.AppImage
+./githelper-cli-2.0.2-x86_64.AppImage remote list
 
-chmod +x githelper-gui-2.0.0-x86_64.AppImage
-./githelper-gui-2.0.0-x86_64.AppImage
+chmod +x githelper-gui-2.0.2-x86_64.AppImage
+./githelper-gui-2.0.2-x86_64.AppImage
 ```
 
 **Requirements:** `git` and `openssh-client` must still be installed on your system and available on your `PATH`. The AppImages bundle Python and githelper itself, not git or ssh.
@@ -171,7 +171,7 @@ packaging/appimage/build.sh all             # or: cli | gui
 ls dist/*.AppImage
 ```
 
-Releases are built automatically when a version tag is pushed (for example `v2.0.0`). You can also trigger a manual build from the **Actions** tab in GitHub.
+Releases are built automatically when a version tag is pushed (for example `v2.0.2`). You can also trigger a manual build from the **Actions** tab in GitHub.
 
 ## Tips
 
