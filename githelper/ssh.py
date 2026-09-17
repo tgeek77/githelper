@@ -52,6 +52,23 @@ def repo_git_dirname(repo_name_no_suffix):
     return repo + ".git"
 
 
+def init_bare_repo_cmd(repo_path):
+    """
+    POSIX shell that creates a bare repo whose default branch is main
+    and whose first commit is an empty .gitignore.
+    """
+    repo = shlex.quote(str(repo_path))
+    return f"""set -e
+git init --bare --initial-branch=main {repo}
+export GIT_DIR={repo}
+blob=$(git hash-object -w --stdin </dev/null)
+tree=$(printf '100644 blob %s\\t.gitignore\\n' "$blob" | git mktree)
+commit=$(git -c user.name=githelper -c user.email=githelper@localhost commit-tree "$tree" -m "Initial commit")
+git update-ref refs/heads/main "$commit"
+git symbolic-ref HEAD refs/heads/main
+"""
+
+
 def run_ssh(server, user, port, command_text, verbose=False, check=True):
     """Run a shell command on a remote host via SSH."""
     cmd = ["ssh", "-p", str(port), f"{user}@{server}", command_text]

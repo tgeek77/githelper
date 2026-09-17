@@ -832,7 +832,7 @@ class GithelperGUI:
         self._run_in_background(f"Clone {repo_name}", work, done)
 
     def create_repo(self):
-        """Create a new bare remote repo"""
+        """Create a new bare remote repo on main with an empty .gitignore"""
         repo_name = simpledialog.askstring("Create Repo",
                                            "Enter new repo name:")
         if not repo_name:

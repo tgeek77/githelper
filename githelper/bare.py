@@ -4,7 +4,7 @@ import shlex
 from pathlib import Path
 
 from githelper.errors import GithelperError
-from githelper.ssh import repo_git_dirname, run_local
+from githelper.ssh import init_bare_repo_cmd, repo_git_dirname, run_local
 
 
 def _location_path(location):
@@ -44,11 +44,10 @@ def list_repos(location, verbose=False):
 
 
 def create_repo(location, repo_name, verbose=False):
-    """Create a new local bare repo."""
+    """Create a new local bare repo on main with an empty .gitignore."""
     repo_name = repo_name.strip().removesuffix(".git")
     path = _repo_path(location, repo_name)
-    cmd = ["git", "init", "--bare", "--initial-branch=main", str(path)]
-    return run_local(cmd, verbose=verbose)
+    return run_local(init_bare_repo_cmd(path), verbose=verbose)
 
 
 def clone_repo(location, repo_name, dest=None, verbose=False):

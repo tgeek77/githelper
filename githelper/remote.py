@@ -5,6 +5,7 @@ from pathlib import Path
 
 from githelper.errors import GithelperError
 from githelper.ssh import (
+    init_bare_repo_cmd,
     remote_cd_cmd,
     remote_path_for_git_url,
     repo_git_dirname,
@@ -56,12 +57,11 @@ def require_repo(server, user, port, ssh_dir, repo_name, verbose=False):
 
 
 def create_repo(server, user, port, ssh_dir, repo_name, verbose=False):
-    """Create a new bare repo on the remote host."""
+    """Create a new bare repo on the remote host on main with an empty .gitignore."""
     _conn(server, user, port, ssh_dir)
     repo_name = repo_name.strip().removesuffix(".git")
     cd_cmd = remote_cd_cmd(ssh_dir)
-    repo_git = shlex.quote(repo_git_dirname(repo_name))
-    cmd = f"set -e; {cd_cmd}; git init --bare --initial-branch=main {repo_git}"
+    cmd = f"{cd_cmd}; {init_bare_repo_cmd(repo_git_dirname(repo_name))}"
     return run_ssh(server, user, port, cmd, verbose=verbose)
 
 
