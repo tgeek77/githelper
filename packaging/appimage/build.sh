@@ -43,7 +43,7 @@ install_appimagetool() {
     if [[ ! -x "$tool" ]]; then
         echo "Downloading appimagetool..."
         wget -q -O "$tool" \
-            "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${ARCH}.AppImage"
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${ARCH}.AppImage"
         chmod +x "$tool"
     fi
     # Works on CI runners without FUSE.
